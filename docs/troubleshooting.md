@@ -102,7 +102,11 @@ Fix:
 python3 app.py
 ```
 
-The app uses `db.create_all()` during startup for local development.
+Run local database initialization:
+
+```bash
+make init-db
+```
 
 ## Login Works But Dashboard Shows No Old Transactions
 
@@ -154,3 +158,44 @@ python3 -m py_compile app.py
 ```
 
 If there is no output, the syntax check passed.
+
+## `/health` Works But `/ready` Fails
+
+This means the Flask app is running, but a required dependency is not ready.
+
+Most likely causes:
+
+- PostgreSQL is not running.
+- `DATABASE_URL` is wrong.
+- The database does not exist.
+- The database password is incorrect.
+
+Fix:
+
+1. Start PostgreSQL.
+2. Confirm `.env` has the correct `DATABASE_URL`.
+3. Confirm the database exists:
+
+```bash
+createdb expense_tracker_db
+```
+
+4. Open:
+
+```text
+http://127.0.0.1:5000/ready
+```
+
+## Logs Do Not Show Enough Detail
+
+Set a more detailed log level:
+
+```env
+LOG_LEVEL=DEBUG
+```
+
+Restart the app:
+
+```bash
+make run
+```

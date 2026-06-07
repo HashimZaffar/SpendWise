@@ -11,6 +11,8 @@ It uses:
 - Flask sessions for login state
 - Werkzeug for password hashing
 - Environment variables for runtime configuration
+- JSON logs for request and application events
+- CSRF tokens for POST form protection
 
 ## High-Level Flow
 
@@ -123,6 +125,66 @@ Request /dashboard
   -> render dashboard
 ```
 
+## Health and Readiness
+
+SpendWise exposes two operational endpoints:
+
+```text
+/health
+/ready
+```
+
+### `/health`
+
+Liveness check.
+
+Purpose:
+
+```text
+Confirms the Flask process is running.
+```
+
+It does not check database connectivity.
+
+### `/ready`
+
+Readiness check.
+
+Purpose:
+
+```text
+Confirms the app can connect to required dependencies before receiving traffic.
+```
+
+Current checks:
+
+- PostgreSQL database connection
+- Redis connectivity, if `REDIS_URL` is set
+
+## Structured Logging
+
+SpendWise writes JSON logs to stdout.
+
+Example:
+
+```json
+{
+  "level": "info",
+  "message": "User login successful",
+  "timestamp": "2026-06-07T10:00:00+00:00",
+  "request_id": "abc123",
+  "user_id": 1
+}
+```
+
+Every response includes:
+
+```text
+X-Request-ID
+```
+
+If the request includes an `X-Request-ID` header, SpendWise reuses it. Otherwise, it generates a new request id.
+
 ## Data Access Rules
 
 Every transaction query is scoped by:
@@ -148,5 +210,4 @@ The CSS uses theme variables in `:root` for consistent colors, borders, shadows,
 - No automated tests yet.
 - No database migrations yet.
 - No pagination yet.
-- No production WSGI server configuration yet.
-- `db.create_all()` is used for local learning convenience.
+- Local table creation is available through `initialize_local_database()` / `make init-db` and is skipped in production.

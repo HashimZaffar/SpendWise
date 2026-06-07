@@ -1,26 +1,38 @@
 # Import the os module so we can read environment variables.
 import os
 
+# Import json so logs can be written as structured JSON.
+import json
+
 # Import logging so the app log level can be controlled by environment.
 import logging
 
+# Import secrets so we can create CSRF tokens.
+import secrets
+
 # Import datetime so we can store the date and time when a transaction is created.
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import wraps so custom decorators keep the original function names.
 from functools import wraps
+
+# Import uuid so each request can have a unique request id.
+from uuid import uuid4
 
 # Import load_dotenv so Python can read values from the .env file.
 from dotenv import load_dotenv
 
 # Import Flask to create the web application.
 # Import flash to show one-time success or error messages to the user.
+# Import g to store request-specific data.
+# Import jsonify to return JSON responses for operational endpoints.
+# Import abort to stop unsafe requests.
 # Import redirect to send the user from one route/page to another.
 # Import render_template to show HTML files from the templates folder.
 # Import request to read data coming from forms and URLs.
 # Import session to remember which user is logged in.
 # Import url_for to generate URLs using function names.
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
 
 # Import SQLAlchemy so Python can work with the PostgreSQL database.
 from flask_sqlalchemy import SQLAlchemy
@@ -35,22 +47,87 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Load the .env file so environment variables become available to this app.
 load_dotenv()
 
+VALID_APP_ENVS = {"development", "testing", "production"}
+VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+VALID_SAMESITE_VALUES = {"Lax", "Strict", "None"}
+
+
+def parse_bool_env(name, default=False):
+    value = os.getenv(name)
+
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def parse_port(value):
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        raise RuntimeError("APP_PORT must be a valid integer.")
+
+    if port < 1 or port > 65535:
+        raise RuntimeError("APP_PORT must be between 1 and 65535.")
+
+    return port
+
+
 # Read app-level settings from environment variables.
 APP_ENV = os.getenv("APP_ENV", "development").lower()
-APP_PORT = int(os.getenv("APP_PORT", "5000"))
+APP_PORT = parse_port(os.getenv("APP_PORT", "5000"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
 REDIS_URL = os.getenv("REDIS_URL")
 JWT_SECRET = os.getenv("JWT_SECRET")
+SESSION_COOKIE_SECURE = parse_bool_env("SESSION_COOKIE_SECURE", APP_ENV == "production")
+SESSION_COOKIE_HTTPONLY = parse_bool_env("SESSION_COOKIE_HTTPONLY", True)
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
 ]
 
-# Configure logging from the LOG_LEVEL environment variable.
-logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
+if APP_ENV not in VALID_APP_ENVS:
+    raise RuntimeError("APP_ENV must be one of: development, testing, production.")
+
+if LOG_LEVEL not in VALID_LOG_LEVELS:
+    raise RuntimeError("LOG_LEVEL must be one of: DEBUG, INFO, WARNING, ERROR, CRITICAL.")
+
+if SESSION_COOKIE_SAMESITE not in VALID_SAMESITE_VALUES:
+    raise RuntimeError("SESSION_COOKIE_SAMESITE must be one of: Lax, Strict, None.")
+
+if SESSION_COOKIE_SAMESITE == "None" and not SESSION_COOKIE_SECURE:
+    raise RuntimeError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE is None.")
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "level": record.levelname.lower(),
+            "message": record.getMessage(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "request_id": getattr(record, "request_id", None),
+        }
+
+        for key in ["method", "path", "status_code", "user_id", "duration_ms"]:
+            value = getattr(record, key, None)
+            if value is not None:
+                log_data[key] = value
+
+        return json.dumps(log_data)
+
+
+# Configure structured JSON logging from the LOG_LEVEL environment variable.
+logger = logging.getLogger("spendwise")
+logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+logger.handlers.clear()
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger.addHandler(handler)
+logger.propagate = False
 
 # Fail early with a clear message if required environment variables are missing.
 if not DATABASE_URL:
@@ -73,6 +150,9 @@ app.config["LOG_LEVEL"] = LOG_LEVEL
 app.config["REDIS_URL"] = REDIS_URL
 app.config["JWT_SECRET"] = JWT_SECRET
 app.config["CORS_ORIGINS"] = CORS_ORIGINS
+app.config["SESSION_COOKIE_SECURE"] = SESSION_COOKIE_SECURE
+app.config["SESSION_COOKIE_HTTPONLY"] = SESSION_COOKIE_HTTPONLY
+app.config["SESSION_COOKIE_SAMESITE"] = SESSION_COOKIE_SAMESITE
 
 # Set the database connection URL from the DATABASE_URL environment variable.
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
@@ -145,21 +225,147 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# Open the Flask application context.
-# SQLAlchemy needs this context to know which Flask app/database it should use.
-with app.app_context():
-    # Create database tables from the models if they do not already exist.
-    db.create_all()
+def initialize_local_database():
+    # Open the Flask application context.
+    # SQLAlchemy needs this context to know which Flask app/database it should use.
+    with app.app_context():
+        # Create database tables from the models if they do not already exist.
+        db.create_all()
 
-    # Add user_id to the existing transaction table if it is missing.
-    # db.create_all() creates new tables, but it does not reliably add new columns
-    # to tables that already exist, so this keeps our current database safe.
-    db.session.execute(
-        text('ALTER TABLE "transaction" ADD COLUMN IF NOT EXISTS user_id INTEGER')
+        # Add user_id to the existing transaction table if it is missing.
+        # db.create_all() creates new tables, but it does not reliably add new columns
+        # to tables that already exist, so this keeps our current database safe.
+        db.session.execute(
+            text('ALTER TABLE "transaction" ADD COLUMN IF NOT EXISTS user_id INTEGER')
+        )
+
+        # Save the small table update.
+        db.session.commit()
+
+
+@app.before_request
+def start_request_log_context():
+    g.request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    g.request_started_at = datetime.now(timezone.utc)
+
+    if request.method == "POST":
+        form_token = request.form.get("csrf_token")
+        session_token = session.get("csrf_token")
+
+        if not form_token or not session_token or not secrets.compare_digest(form_token, session_token):
+            logger.warning(
+                "CSRF validation failed",
+                extra={
+                    "request_id": g.request_id,
+                    "method": request.method,
+                    "path": request.path,
+                },
+            )
+            abort(400)
+
+
+@app.context_processor
+def inject_csrf_token():
+    def csrf_token():
+        token = session.get("csrf_token")
+
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session["csrf_token"] = token
+
+        return token
+
+    return {"csrf_token": csrf_token}
+
+
+@app.after_request
+def add_request_id_and_log(response):
+    response.headers["X-Request-ID"] = g.get("request_id", "")
+
+    started_at = g.get("request_started_at")
+    duration_ms = None
+
+    if started_at:
+        duration = datetime.now(timezone.utc) - started_at
+        duration_ms = round(duration.total_seconds() * 1000, 2)
+
+    logger.info(
+        "Request completed",
+        extra={
+            "request_id": g.get("request_id"),
+            "method": request.method,
+            "path": request.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        },
     )
 
-    # Save the small table update.
-    db.session.commit()
+    return response
+
+
+@app.route("/health")
+def health():
+    logger.info(
+        "Health check successful",
+        extra={"request_id": g.get("request_id")},
+    )
+
+    return jsonify({
+        "status": "ok",
+        "service": "spendwise",
+        "check": "health",
+    }), 200
+
+
+@app.route("/ready")
+def ready():
+    checks = {
+        "database": "unknown",
+        "redis": "not_configured",
+    }
+
+    status_code = 200
+
+    try:
+        db.session.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as error:
+        db.session.rollback()
+        checks["database"] = "error"
+        status_code = 503
+        logger.error(
+            f"Readiness database check failed: {error}",
+            extra={"request_id": g.get("request_id")},
+        )
+
+    if REDIS_URL:
+        try:
+            import redis
+
+            redis_client = redis.from_url(REDIS_URL, socket_connect_timeout=2)
+            redis_client.ping()
+            checks["redis"] = "ok"
+        except Exception as error:
+            checks["redis"] = "error"
+            status_code = 503
+            logger.error(
+                f"Readiness Redis check failed: {error}",
+                extra={"request_id": g.get("request_id")},
+            )
+
+    ready_status = "ready" if status_code == 200 else "not_ready"
+
+    logger.info(
+        f"Readiness check completed with status {ready_status}",
+        extra={"request_id": g.get("request_id"), "status_code": status_code},
+    )
+
+    return jsonify({
+        "status": ready_status,
+        "service": "spendwise",
+        "check": "ready",
+        "checks": checks,
+    }), status_code
 
 
 # Get the currently logged-in user from the session.
@@ -281,6 +487,13 @@ def dashboard(current_user):
 
             # Show a success message after updating.
             flash("Transaction updated successfully.", "success")
+            logger.info(
+                "Transaction updated",
+                extra={
+                    "request_id": g.get("request_id"),
+                    "user_id": current_user.id,
+                },
+            )
         else:
             # If transaction_id is empty, create a new Transaction object.
             new_transaction = Transaction(
@@ -306,6 +519,13 @@ def dashboard(current_user):
 
             # Show a success message after adding.
             flash("Transaction added successfully.", "success")
+            logger.info(
+                "Transaction added",
+                extra={
+                    "request_id": g.get("request_id"),
+                    "user_id": current_user.id,
+                },
+            )
 
         # Save the add or update change permanently in the database.
         db.session.commit()
@@ -431,6 +651,13 @@ def delete_transaction(current_user, transaction_id):
 
     # Show a success message after deleting.
     flash("Transaction deleted successfully.", "success")
+    logger.info(
+        "Transaction deleted",
+        extra={
+            "request_id": g.get("request_id"),
+            "user_id": current_user.id,
+        },
+    )
 
     # After deleting, redirect back to the dashboard.
     return redirect(url_for("dashboard"))
@@ -501,6 +728,13 @@ def signup():
 
         # Show success message after account creation.
         flash("Account created successfully. Please login now.", "success")
+        logger.info(
+            "User signup successful",
+            extra={
+                "request_id": g.get("request_id"),
+                "user_id": new_user.id,
+            },
+        )
 
         # Redirect to the login page after signup.
         return redirect(url_for("login"))
@@ -541,6 +775,13 @@ def login():
 
         # Show a success message.
         flash("Logged in successfully.", "success")
+        logger.info(
+            "User login successful",
+            extra={
+                "request_id": g.get("request_id"),
+                "user_id": user.id,
+            },
+        )
 
         # Send the user to the SpendWise dashboard.
         return redirect(url_for("dashboard"))
@@ -557,6 +798,10 @@ def logout():
 
     # Show a success message.
     flash("Logged out successfully.", "success")
+    logger.info(
+        "User logout successful",
+        extra={"request_id": g.get("request_id")},
+    )
 
     # Send the user to the login page.
     return redirect(url_for("login"))
@@ -564,5 +809,8 @@ def logout():
 
 # This checks whether this file is being run directly.
 if __name__ == "__main__":
+    if APP_ENV != "production":
+        initialize_local_database()
+
     # Start the Flask development server using environment-based settings.
     app.run(debug=APP_ENV == "development", port=APP_PORT)

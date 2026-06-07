@@ -28,6 +28,8 @@
         <p>Sign up to manage your own transactions.</p>
 
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <label>Name</label>
             <input type="text" name="name" placeholder="Enter your name" required>
 

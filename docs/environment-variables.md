@@ -19,7 +19,10 @@ Never commit the real `.env` file. It can contain database passwords and applica
 | `APP_ENV` | Recommended | `development` | Controls app environment and debug mode |
 | `APP_PORT` | Recommended | `5000` | Port used by `python3 app.py` |
 | `LOG_LEVEL` | Recommended | `INFO` | Python logging level |
-| `REDIS_URL` | Optional/reserved | `redis://localhost:6379/0` | Reserved for future Redis-backed features |
+| `SESSION_COOKIE_SECURE` | Recommended | `false` locally, `true` in production | Sends cookies only over HTTPS when enabled |
+| `SESSION_COOKIE_HTTPONLY` | Recommended | `true` | Prevents JavaScript access to session cookies |
+| `SESSION_COOKIE_SAMESITE` | Recommended | `Lax` | Controls cross-site cookie behavior |
+| `REDIS_URL` | Optional | `redis://localhost:6379/0` | Enables Redis readiness checks when configured |
 | `JWT_SECRET` | Optional/reserved | `change-this-if-you-add-jwt-auth` | Reserved for future JWT/API auth |
 | `CORS_ORIGINS` | Optional/reserved | `http://127.0.0.1:5000,http://localhost:5000` | Reserved for future cross-origin/API configuration |
 
@@ -118,6 +121,26 @@ REDIS_URL=
 JWT_SECRET=change-this-if-you-add-jwt-auth
 CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
 ```
+
+## Session Cookie Variables
+
+Recommended local values:
+
+```env
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=Lax
+```
+
+Recommended production values:
+
+```env
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=Lax
+```
+
+Only use `SESSION_COOKIE_SECURE=true` when the app is served over HTTPS.
 
 ## Security Notes
 

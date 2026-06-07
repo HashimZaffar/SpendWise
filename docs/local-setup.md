@@ -49,6 +49,8 @@ You should see `(venv)` in your terminal.
 make install
 ```
 
+This command uses the project virtual environment and installs everything from `requirements.txt`.
+
 ## 4. Create the Database
 
 Recommended command:
@@ -91,6 +93,9 @@ SECRET_KEY=change-this-to-a-long-random-secret
 APP_ENV=development
 APP_PORT=5000
 LOG_LEVEL=INFO
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=Lax
 REDIS_URL=
 JWT_SECRET=change-this-if-you-add-jwt-auth
 CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
@@ -99,6 +104,14 @@ CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
 Replace `your_password` with your PostgreSQL password.
 
 ## 6. Run the App
+
+Initialize local tables:
+
+```bash
+make init-db
+```
+
+Run the server:
 
 ```bash
 make run
@@ -126,6 +139,8 @@ Use this flow to confirm the app works:
 10. Delete a transaction.
 11. Logout.
 12. Confirm `/dashboard` redirects to login when logged out.
+13. Open `/health` and confirm it returns `200`.
+14. Open `/ready` and confirm it returns `200` when PostgreSQL is running.
 
 ## 8. Developer Checks
 

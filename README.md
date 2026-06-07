@@ -17,6 +17,10 @@ The app lets users create an account, log in, manage their own income and expens
 - Filter by all, income, or expense
 - Flash messages for success and error feedback
 - Professional responsive UI theme
+- Health and readiness endpoints
+- Structured JSON request logs
+- CSRF protection for POST forms
+- Secure session cookie configuration
 
 ## Tech Stack
 
@@ -27,6 +31,8 @@ The app lets users create an account, log in, manage their own income and expens
 - Jinja2 templates
 - HTML/CSS
 - python-dotenv
+- Gunicorn
+- Redis client for optional readiness checks
 - Werkzeug security helpers
 
 ## Project Structure
@@ -42,6 +48,7 @@ expense-tracker/
   docs/
     architecture.md
     environment-variables.md
+    deployment.md
     local-setup.md
     troubleshooting.md
   static/
@@ -65,10 +72,12 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
+You can also let the Makefile create the virtual environment during dependency installation.
+
 ### 2. Install dependencies
 
 ```bash
-python3 -m pip install -r requirements.txt
+make install
 ```
 
 ### 3. Create the PostgreSQL database
@@ -103,6 +112,9 @@ SECRET_KEY=change-this-to-a-long-random-secret
 APP_ENV=development
 APP_PORT=5000
 LOG_LEVEL=INFO
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=Lax
 REDIS_URL=
 JWT_SECRET=change-this-if-you-add-jwt-auth
 CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
@@ -111,7 +123,8 @@ CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
 ### 5. Run the app
 
 ```bash
-python3 app.py
+make init-db
+make run
 ```
 
 Open:
@@ -130,10 +143,26 @@ The login page is the home page. Create an account at `/signup`, then log in to 
 make install
 ```
 
+This creates `venv/` if it does not exist, upgrades `pip`, and installs dependencies from `requirements.txt`.
+
 ### Run
 
 ```bash
 make run
+```
+
+### Initialize local database tables
+
+```bash
+make init-db
+```
+
+`make run` also initializes local tables when `APP_ENV` is not `production`.
+
+### Run production server locally
+
+```bash
+make prod
 ```
 
 ### Syntax check
@@ -163,6 +192,7 @@ There is no separate build artifact. This is a server-rendered Flask app with st
 - [Local setup](docs/local-setup.md)
 - [Environment variables](docs/environment-variables.md)
 - [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
 ## Main Routes
@@ -175,6 +205,8 @@ There is no separate build artifact. This is a server-rendered Flask app with st
 | `/dashboard` | Protected SpendWise dashboard |
 | `/delete/<transaction_id>` | Delete a transaction |
 | `/logout` | End the current session |
+| `/health` | Liveness check |
+| `/ready` | Readiness check with database verification |
 
 ## Database Models
 
@@ -207,14 +239,17 @@ Before opening a pull request or handing off the project:
 - Dependencies install successfully.
 - `.env` is created from `.env.example`.
 - PostgreSQL database exists.
-- `python3 app.py` starts the server.
+- `make init-db` creates local database tables.
+- `make run` starts the development server.
+- `/health` returns `200`.
+- `/ready` returns `200` when the database is reachable.
 - `/signup` creates a user.
 - `/` logs in successfully.
 - `/dashboard` creates, edits, deletes, searches, and filters transactions.
-- `python3 -m py_compile app.py` passes.
+- `make check` passes.
 
 ## Notes
 
 - `.env` contains secrets and must stay local.
 - Existing old transactions without `user_id` may not show after login. This is expected because the app now shows only the logged-in user's transactions.
-- `db.create_all()` is used for learning simplicity. A production app should use database migrations, such as Flask-Migrate.
+- Local table creation is available through `make init-db`. Production should use database migrations, such as Flask-Migrate.
