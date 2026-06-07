@@ -1,10 +1,10 @@
 # Deployment
 
-This guide describes the production deployment shape for SpendWise microservices.
+This guide describes the production deployment shape for SpendWise with separately managed Python services.
 
 ## Production Services
 
-Deploy these services separately:
+Run these services separately:
 
 ```text
 web-app
@@ -12,23 +12,19 @@ auth-service
 transaction-service
 ```
 
-Each service has its own Dockerfile.
+Each service can run as a systemd service, process manager service, or platform web process.
 
-## Runtime
+## Gunicorn Commands
 
-Each service runs with Gunicorn:
-
-```bash
-gunicorn --bind 0.0.0.0:5000 app:app
-gunicorn --bind 0.0.0.0:5001 app:app
-gunicorn --bind 0.0.0.0:5002 app:app
-```
-
-In Docker Compose, use:
+From the project root:
 
 ```bash
-make compose-up
+make prod-auth
+make prod-transactions
+make prod-web
 ```
+
+In production, run each command as a separate managed process.
 
 ## Required Environment Variables
 
@@ -45,8 +41,8 @@ JWT_SECRET=replace-with-a-different-long-random-secret
 
 ```env
 WEB_APP_PORT=5000
-AUTH_SERVICE_URL=http://auth-service:5001
-TRANSACTION_SERVICE_URL=http://transaction-service:5002
+AUTH_SERVICE_URL=http://127.0.0.1:5001
+TRANSACTION_SERVICE_URL=http://127.0.0.1:5002
 SESSION_COOKIE_SECURE=true
 SESSION_COOKIE_HTTPONLY=true
 SESSION_COOKIE_SAMESITE=Lax
@@ -72,22 +68,22 @@ TRANSACTION_DATABASE_URL=postgresql://user:password@host:5432/spendwise_transact
 Use `/health` for liveness:
 
 ```text
-web-app/health
-auth-service/health
-transaction-service/health
+http://127.0.0.1:5000/health
+http://127.0.0.1:5001/health
+http://127.0.0.1:5002/health
 ```
 
-Use `/ready` for traffic readiness:
+Use `/ready` for readiness:
 
 ```text
-web-app/ready
-auth-service/ready
-transaction-service/ready
+http://127.0.0.1:5000/ready
+http://127.0.0.1:5001/ready
+http://127.0.0.1:5002/ready
 ```
 
 ## Database
 
-Current Docker startup creates tables automatically for learning convenience.
+Development startup creates tables automatically for learning convenience.
 
 Before real production deployment, add migrations:
 
@@ -119,4 +115,4 @@ Platforms should collect stdout/stderr logs and index by:
 - Add database migrations before production.
 - Add automated tests before production.
 - Add backups for both PostgreSQL databases.
-- Put services behind a reverse proxy or API gateway.
+- Put services behind a reverse proxy.

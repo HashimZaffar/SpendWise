@@ -90,4 +90,4 @@ Each service writes JSON logs to stdout with:
 - Database migrations are not implemented yet.
 - Automated tests are still minimal.
 - There is no API gateway yet.
-- Service discovery is handled by Docker Compose service names.
+- Service URLs are configured through environment variables.

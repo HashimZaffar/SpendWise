@@ -1,12 +1,12 @@
 # SpendWise
 
-SpendWise is a microservices-based full-stack personal finance app built with Flask, PostgreSQL, Docker Compose, Jinja templates, and CSS.
+SpendWise is a microservices-based full-stack personal finance app built with Flask, PostgreSQL, Jinja templates, and CSS.
 
 The app lets users create an account, log in, manage income and expense transactions, search/filter records, and view dashboard totals.
 
 ## Architecture
 
-SpendWise is now split into three services:
+SpendWise is split into three Python services:
 
 | Service | Port | Responsibility |
 | --- | --- | --- |
@@ -14,19 +14,18 @@ SpendWise is now split into three services:
 | `auth-service` | `5001` | Signup, login, user lookup, JWT issuing |
 | `transaction-service` | `5002` | Transaction CRUD, search/filter, summary totals |
 
-Each backend service owns its own database:
+Each backend service owns its own PostgreSQL database:
 
 | Database | Owner |
 | --- | --- |
 | `spendwise_auth_db` | `auth-service` |
 | `spendwise_transaction_db` | `transaction-service` |
 
-The old `app.py` monolith is kept as a learning reference, but the main architecture is now under `services/`.
+The old `app.py` monolith is kept as a learning reference, but the main microservices app is under `services/`.
 
 ## Features
 
 - Microservices folder structure
-- Docker Compose orchestration
 - Separate auth and transaction databases
 - JWT-based service authentication
 - Server-rendered frontend
@@ -42,7 +41,6 @@ The old `app.py` monolith is kept as a learning reference, but the main architec
 ```text
 expense-tracker/
   app.py                         # legacy monolith reference
-  docker-compose.yml
   Makefile
   README.md
   .env.example
@@ -56,27 +54,48 @@ expense-tracker/
   services/
     auth-service/
       app.py
-      Dockerfile
       requirements.txt
     transaction-service/
       app.py
-      Dockerfile
       requirements.txt
     web-app/
       app.py
-      Dockerfile
       requirements.txt
       templates/
       static/
 ```
 
-## Quick Start With Docker
+## Quick Start
 
 Run from inside `expense-tracker/`:
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate
+make install
+make install-services
 cp .env.example .env
-make compose-up
+```
+
+Create local PostgreSQL databases:
+
+```bash
+createdb spendwise_auth_db
+createdb spendwise_transaction_db
+```
+
+Start each service in a separate terminal:
+
+```bash
+make run-auth
+```
+
+```bash
+make run-transactions
+```
+
+```bash
+make run-web
 ```
 
 Open:
@@ -84,13 +103,6 @@ Open:
 ```text
 http://127.0.0.1:5000/
 ```
-
-Then:
-
-1. Create an account at `/signup`.
-2. Login at `/`.
-3. Add income and expense transactions.
-4. Search, filter, edit, and delete transactions.
 
 ## Health Checks
 
@@ -107,23 +119,15 @@ curl http://127.0.0.1:5002/ready
 
 ```bash
 make install
+make install-services
 make test
-make compose-build
-make compose-up
-make compose-ps
-make compose-logs
-make compose-down
-```
-
-For non-Docker local service runs:
-
-```bash
 make run-auth
 make run-transactions
 make run-web
+make prod-auth
+make prod-transactions
+make prod-web
 ```
-
-Run each command in a separate terminal.
 
 ## Documentation
 

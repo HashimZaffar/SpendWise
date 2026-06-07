@@ -70,7 +70,7 @@ This is microservices because:
 - Each service has one main responsibility.
 - Auth and transactions have separate databases.
 - Services talk over HTTP APIs.
-- Docker Compose starts the whole system.
+- The services can run as separate local Python processes.
 - Each service has its own health/readiness endpoints.
 
 ## Local URLs

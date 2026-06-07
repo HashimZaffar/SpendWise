@@ -3,7 +3,7 @@ PYTHON ?= $(VENV)/bin/python
 PIP ?= $(VENV)/bin/pip
 GUNICORN ?= $(VENV)/bin/gunicorn
 
-.PHONY: venv install install-services init-db run run-auth run-transactions run-web prod check check-services test build compose-up compose-build compose-down compose-logs compose-ps
+.PHONY: venv install install-services init-db run run-auth run-transactions run-web prod-web prod-auth prod-transactions check check-services test build
 
 venv:
 	python3 -m venv $(VENV)
@@ -35,6 +35,15 @@ run-web:
 prod:
 	$(GUNICORN) --bind 0.0.0.0:$${APP_PORT:-5000} app:app
 
+prod-web:
+	cd services/web-app && ../../$(GUNICORN) --bind 0.0.0.0:$${WEB_APP_PORT:-5000} app:app
+
+prod-auth:
+	cd services/auth-service && ../../$(GUNICORN) --bind 0.0.0.0:$${AUTH_SERVICE_PORT:-5001} app:app
+
+prod-transactions:
+	cd services/transaction-service && ../../$(GUNICORN) --bind 0.0.0.0:$${TRANSACTION_SERVICE_PORT:-5002} app:app
+
 check:
 	$(PYTHON) -m py_compile app.py
 
@@ -49,18 +58,3 @@ test: check check-services
 
 build:
 	@echo "No build step required for this server-rendered Flask app."
-
-compose-build:
-	docker compose build
-
-compose-up:
-	docker compose up --build
-
-compose-down:
-	docker compose down
-
-compose-logs:
-	docker compose logs -f
-
-compose-ps:
-	docker compose ps
