@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpendWise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="messages">
+                {% for category, message in messages %}
+                    <p class="message {{ category }}">{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="top-links nav-links">
+        <span>Signed in as {{ current_user.name }}</span>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+
+    <div class="container">
+        <h1>SpendWise</h1>
+        <p>
+            {% if transaction_to_edit %}
+                Update your selected transaction below.
+            {% else %}
+                Add your income and expenses below.
+            {% endif %}
+        </p>
+
+        <div class="summary">
+            <div class="summary-card income">
+                <h3>Total Income</h3>
+                <p>{{ "%.2f"|format(total_income) }}</p>
+            </div>
+
+            <div class="summary-card expense">
+                <h3>Total Expense</h3>
+                <p>{{ "%.2f"|format(total_expense) }}</p>
+            </div>
+
+            <div class="summary-card balance">
+                <h3>Balance</h3>
+                <p>{{ "%.2f"|format(balance) }}</p>
+            </div>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="transaction_id" value="{{ transaction_to_edit.id if transaction_to_edit else '' }}">
+
+            <label>Title</label>
+            <input
+                type="text"
+                name="title"
+                placeholder="Example: Salary or Groceries"
+                value="{{ transaction_to_edit.title if transaction_to_edit else '' }}"
+                required
+            >
+
+            <label>Amount</label>
+            <input
+                type="number"
+                name="amount"
+                placeholder="Example: 5000"
+                step="0.01"
+                min="0.01"
+                value="{{ transaction_to_edit.amount if transaction_to_edit else '' }}"
+                required
+            >
+
+            <label>Type</label>
+            <select name="type" required>
+                <option value="" disabled {% if not transaction_to_edit %}selected{% endif %}>Select type</option>
+                <option value="income" {% if transaction_to_edit and transaction_to_edit.type == "income" %}selected{% endif %}>Income</option>
+                <option value="expense" {% if transaction_to_edit and transaction_to_edit.type == "expense" %}selected{% endif %}>Expense</option>
+            </select>
+
+            <label>Category</label>
+            <input
+                type="text"
+                name="category"
+                placeholder="Example: Food, Rent, Job"
+                value="{{ transaction_to_edit.category if transaction_to_edit else '' }}"
+                required
+            >
+
+            <div class="form-actions">
+                <button type="submit">
+                    {% if transaction_to_edit %}
+                        Update Transaction
+                    {% else %}
+                        Add Transaction
+                    {% endif %}
+                </button>
+
+                {% if transaction_to_edit %}
+                    <a href="{{ url_for('dashboard') }}" class="cancel-btn">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+
+    <h2>Transactions</h2>
+
+    <div class="filters">
+        <a href="{{ url_for('dashboard', search=search_text) if search_text else url_for('dashboard') }}" class="{% if selected_filter == 'all' %}active{% endif %}">All</a>
+        <a href="{{ url_for('dashboard', filter='income', search=search_text) if search_text else url_for('dashboard', filter='income') }}" class="{% if selected_filter == 'income' %}active{% endif %}">Income</a>
+        <a href="{{ url_for('dashboard', filter='expense', search=search_text) if search_text else url_for('dashboard', filter='expense') }}" class="{% if selected_filter == 'expense' %}active{% endif %}">Expense</a>
+    </div>
+
+    <form method="GET" class="search-form">
+        <input
+            type="text"
+            name="search"
+            placeholder="Search by title or category"
+            value="{{ search_text }}"
+        >
+
+        {% if selected_filter != "all" %}
+            <input type="hidden" name="filter" value="{{ selected_filter }}">
+        {% endif %}
+
+        <button type="submit">Search</button>
+        <a href="{{ url_for('dashboard', filter=selected_filter) if selected_filter != 'all' else url_for('dashboard') }}" class="clear-btn">Clear</a>
+    </form>
+
+    {% if transactions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.title }}</td>
+                    <td>{{ "%.2f"|format(transaction.amount) }}</td>
+                    <td>{{ transaction.type }}</td>
+                    <td>{{ transaction.category }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('dashboard', edit_id=transaction.id) }}" class="edit-btn">Edit</a>
+
+                            <form method="POST" action="{{ url_for('delete_transaction', transaction_id=transaction.id) }}" class="delete-form">
+                                <button type="submit" class="delete-btn">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="empty-message">No transactions added yet.</p>
+    {% endif %}
+</body>
+</html>
