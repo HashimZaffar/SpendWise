@@ -35,6 +35,28 @@ cp .env.example .env
 
 Then edit `.env`.
 
+## `SECRET_KEY` Is Missing
+
+Flask needs `SECRET_KEY` for session and flash-message security.
+
+Fix:
+
+```bash
+cp .env.example .env
+```
+
+Then set:
+
+```env
+SECRET_KEY=your-generated-secret
+```
+
+Generate a strong value:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
 ## `password authentication failed for user "postgres"`
 
 The password in `DATABASE_URL` is wrong.

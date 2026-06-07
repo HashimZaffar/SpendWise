@@ -10,6 +10,7 @@ It uses:
 - SQLAlchemy as the ORM
 - Flask sessions for login state
 - Werkzeug for password hashing
+- Environment variables for runtime configuration
 
 ## High-Level Flow
 

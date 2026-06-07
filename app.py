@@ -1,6 +1,9 @@
 # Import the os module so we can read environment variables.
 import os
 
+# Import logging so the app log level can be controlled by environment.
+import logging
+
 # Import datetime so we can store the date and time when a transaction is created.
 from datetime import datetime
 
@@ -29,18 +32,50 @@ from sqlalchemy import or_, text
 # Import password hash helpers for the upcoming signup and login feature.
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Load the .env file so DATABASE_URL becomes available to this app.
+# Load the .env file so environment variables become available to this app.
 load_dotenv()
+
+# Read app-level settings from environment variables.
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+APP_PORT = int(os.getenv("APP_PORT", "5000"))
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+DATABASE_URL = os.getenv("DATABASE_URL")
+SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
+REDIS_URL = os.getenv("REDIS_URL")
+JWT_SECRET = os.getenv("JWT_SECRET")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+# Configure logging from the LOG_LEVEL environment variable.
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
+
+# Fail early with a clear message if required environment variables are missing.
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required. Add it to your .env file.")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is required. Add it to your .env file.")
 
 # Create the main Flask application object.
 app = Flask(__name__)
 
-# Set a secret key from the environment.
+# Set a secret key from environment variables.
 # Flask needs this for flash messages and session-based features.
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+app.config["SECRET_KEY"] = SECRET_KEY
 
-# Set the database connection URL from the DATABASE_URL value inside .env.
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+# Set app runtime configuration from environment variables.
+app.config["APP_ENV"] = APP_ENV
+app.config["APP_PORT"] = APP_PORT
+app.config["LOG_LEVEL"] = LOG_LEVEL
+app.config["REDIS_URL"] = REDIS_URL
+app.config["JWT_SECRET"] = JWT_SECRET
+app.config["CORS_ORIGINS"] = CORS_ORIGINS
+
+# Set the database connection URL from the DATABASE_URL environment variable.
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 
 # Turn off extra SQLAlchemy modification tracking because we do not need it here.
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -529,6 +564,5 @@ def logout():
 
 # This checks whether this file is being run directly.
 if __name__ == "__main__":
-    # Start the Flask development server.
-    # debug=True shows helpful error messages while learning.
-    app.run(debug=True)
+    # Start the Flask development server using environment-based settings.
+    app.run(debug=APP_ENV == "development", port=APP_PORT)

@@ -88,6 +88,12 @@ Edit `.env`:
 ```env
 DATABASE_URL=postgresql://postgres:your_password@localhost:5432/expense_tracker_db
 SECRET_KEY=change-this-to-a-long-random-secret
+APP_ENV=development
+APP_PORT=5000
+LOG_LEVEL=INFO
+REDIS_URL=
+JWT_SECRET=change-this-if-you-add-jwt-auth
+CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
 ```
 
 Replace `your_password` with your PostgreSQL password.
