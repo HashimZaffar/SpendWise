@@ -1,101 +1,122 @@
 # Deployment
 
-This guide describes the production deployment shape for SpendWise.
+This guide describes the production deployment shape for SpendWise microservices.
 
-## Production Runtime
+## Production Services
 
-Use Gunicorn instead of the Flask development server.
+Deploy these services separately:
 
-```bash
-make prod
+```text
+web-app
+auth-service
+transaction-service
 ```
 
-Equivalent command:
+Each service has its own Dockerfile.
+
+## Runtime
+
+Each service runs with Gunicorn:
 
 ```bash
-gunicorn --bind 0.0.0.0:${APP_PORT:-5000} app:app
+gunicorn --bind 0.0.0.0:5000 app:app
+gunicorn --bind 0.0.0.0:5001 app:app
+gunicorn --bind 0.0.0.0:5002 app:app
+```
+
+In Docker Compose, use:
+
+```bash
+make compose-up
 ```
 
 ## Required Environment Variables
 
-Production must set:
+Common:
 
 ```env
-DATABASE_URL=postgresql://user:password@host:5432/database_name
-SECRET_KEY=replace-with-a-long-random-secret
 APP_ENV=production
-APP_PORT=5000
 LOG_LEVEL=INFO
+SECRET_KEY=replace-with-a-long-random-secret
+JWT_SECRET=replace-with-a-different-long-random-secret
+```
+
+`web-app`:
+
+```env
+WEB_APP_PORT=5000
+AUTH_SERVICE_URL=http://auth-service:5001
+TRANSACTION_SERVICE_URL=http://transaction-service:5002
 SESSION_COOKIE_SECURE=true
 SESSION_COOKIE_HTTPONLY=true
 SESSION_COOKIE_SAMESITE=Lax
 ```
 
-Optional:
+`auth-service`:
 
 ```env
-REDIS_URL=redis://host:6379/0
-JWT_SECRET=replace-if-jwt-is-added
-CORS_ORIGINS=https://your-domain.example
+AUTH_SERVICE_PORT=5001
+AUTH_DATABASE_URL=postgresql://user:password@host:5432/spendwise_auth_db
+JWT_EXPIRES_MINUTES=120
+```
+
+`transaction-service`:
+
+```env
+TRANSACTION_SERVICE_PORT=5002
+TRANSACTION_DATABASE_URL=postgresql://user:password@host:5432/spendwise_transaction_db
 ```
 
 ## Health Checks
 
-Use these endpoints in load balancers, platforms, or uptime checks:
+Use `/health` for liveness:
 
 ```text
-/health
-/ready
+web-app/health
+auth-service/health
+transaction-service/health
 ```
 
-Use `/health` for liveness.
+Use `/ready` for traffic readiness:
 
-Use `/ready` for traffic readiness because it checks database connectivity and Redis connectivity if `REDIS_URL` is configured.
+```text
+web-app/ready
+auth-service/ready
+transaction-service/ready
+```
 
 ## Database
 
-Current state:
+Current Docker startup creates tables automatically for learning convenience.
 
-- Local development can use `make init-db`.
-- Production skips `db.create_all()`.
-- Database migrations are not implemented yet.
-
-Before real production deployment, add:
+Before real production deployment, add migrations:
 
 ```text
 Flask-Migrate / Alembic
 ```
 
-Then production startup should run migrations before serving traffic.
+Production startup should run migrations before serving traffic.
 
 ## Logging
 
-SpendWise writes structured JSON logs to stdout.
+All services write structured JSON logs to stdout.
 
-Example:
+Platforms should collect stdout/stderr logs and index by:
 
-```json
-{
-  "level": "info",
-  "message": "Request completed",
-  "timestamp": "2026-06-07T10:00:00+00:00",
-  "request_id": "abc123",
-  "method": "GET",
-  "path": "/ready",
-  "status_code": 200,
-  "duration_ms": 12.4
-}
-```
-
-Platforms should collect stdout/stderr logs.
+- `service`
+- `request_id`
+- `level`
+- `path`
+- `status_code`
 
 ## Security Checklist
 
 - Use HTTPS.
 - Set `SESSION_COOKIE_SECURE=true`.
-- Use a strong `SECRET_KEY`.
+- Use strong and different `SECRET_KEY` and `JWT_SECRET` values.
 - Never commit `.env`.
 - Rotate secrets if exposed.
 - Add database migrations before production.
 - Add automated tests before production.
-- Add backups for PostgreSQL.
+- Add backups for both PostgreSQL databases.
+- Put services behind a reverse proxy or API gateway.

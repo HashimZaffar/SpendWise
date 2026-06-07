@@ -1,120 +1,28 @@
 # Local Setup
 
-This guide explains how to clone, configure, and run SpendWise locally.
+This guide explains how to run SpendWise as a microservices app.
 
 ## Prerequisites
 
-Install these before starting:
+Install:
+
+- Git
+- Docker
+- Docker Compose
+
+Optional for non-Docker development:
 
 - Python 3.10 or newer
 - PostgreSQL
-- Git
 - `pip`
 
-Optional but useful:
+## Recommended Setup: Docker Compose
 
-- pgAdmin
-- VS Code
-
-## 1. Clone the Repository
-
-```bash
-git clone REPLACE_WITH_YOUR_REPOSITORY_URL
-cd expense-tracker
-```
-
-If the repository is already cloned, open the project folder:
-
-```bash
-cd expense-tracker
-```
-
-## 2. Create a Virtual Environment
-
-```bash
-python3 -m venv venv
-```
-
-Activate it:
-
-```bash
-source venv/bin/activate
-```
-
-You should see `(venv)` in your terminal.
-
-## 3. Install Dependencies
-
-```bash
-make install
-```
-
-This command uses the project virtual environment and installs everything from `requirements.txt`.
-
-## 4. Create the Database
-
-Recommended command:
-
-```bash
-createdb expense_tracker_db
-```
-
-Alternative with `psql`:
-
-```bash
-psql -U postgres
-```
-
-Then:
-
-```sql
-CREATE DATABASE expense_tracker_db;
-```
-
-Exit `psql`:
-
-```sql
-\q
-```
-
-## 5. Create Environment File
-
-Copy the example file:
+From inside `expense-tracker/`:
 
 ```bash
 cp .env.example .env
-```
-
-Edit `.env`:
-
-```env
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/expense_tracker_db
-SECRET_KEY=change-this-to-a-long-random-secret
-APP_ENV=development
-APP_PORT=5000
-LOG_LEVEL=INFO
-SESSION_COOKIE_SECURE=false
-SESSION_COOKIE_HTTPONLY=true
-SESSION_COOKIE_SAMESITE=Lax
-REDIS_URL=
-JWT_SECRET=change-this-if-you-add-jwt-auth
-CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
-```
-
-Replace `your_password` with your PostgreSQL password.
-
-## 6. Run the App
-
-Initialize local tables:
-
-```bash
-make init-db
-```
-
-Run the server:
-
-```bash
-make run
+make compose-up
 ```
 
 Open:
@@ -123,13 +31,33 @@ Open:
 http://127.0.0.1:5000/
 ```
 
-## 7. Manual Test Flow
+Docker Compose starts:
 
-Use this flow to confirm the app works:
+- `web-app`
+- `auth-service`
+- `transaction-service`
+- `auth-db`
+- `transaction-db`
+- `redis`
 
-1. Open `/signup`.
+## Health Checks
+
+Run in a new terminal:
+
+```bash
+curl http://127.0.0.1:5000/health
+curl http://127.0.0.1:5000/ready
+curl http://127.0.0.1:5001/health
+curl http://127.0.0.1:5001/ready
+curl http://127.0.0.1:5002/health
+curl http://127.0.0.1:5002/ready
+```
+
+## Manual End-to-End Test Flow
+
+1. Open `http://127.0.0.1:5000/signup`.
 2. Create a new account.
-3. Login at `/`.
+3. Login at `http://127.0.0.1:5000/`.
 4. Add an income transaction.
 5. Add an expense transaction.
 6. Confirm dashboard totals update.
@@ -139,29 +67,67 @@ Use this flow to confirm the app works:
 10. Delete a transaction.
 11. Logout.
 12. Confirm `/dashboard` redirects to login when logged out.
-13. Open `/health` and confirm it returns `200`.
-14. Open `/ready` and confirm it returns `200` when PostgreSQL is running.
 
-## 8. Developer Checks
-
-Run a Python syntax check:
+## Useful Docker Commands
 
 ```bash
-make check
+make compose-ps
+make compose-logs
+make compose-down
 ```
 
-Run the current test command:
+## Non-Docker Development
+
+Create a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+make install
+make install-services
+```
+
+Create local databases:
+
+```bash
+createdb spendwise_auth_db
+createdb spendwise_transaction_db
+```
+
+Copy the environment file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set:
+
+```env
+AUTH_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_auth_db
+TRANSACTION_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_transaction_db
+AUTH_SERVICE_URL=http://127.0.0.1:5001
+TRANSACTION_SERVICE_URL=http://127.0.0.1:5002
+```
+
+Run each service in a separate terminal:
+
+```bash
+make run-auth
+make run-transactions
+make run-web
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000/
+```
+
+## Developer Checks
 
 ```bash
 make test
-```
-
-Run the build command:
-
-```bash
 make build
 ```
 
-There is no build artifact because this is a server-rendered Flask app.
-
-Automated tests are not available yet.
+Automated tests are not fully implemented yet. `make test` currently checks Python syntax and import safety.

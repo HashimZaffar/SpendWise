@@ -1,151 +1,77 @@
 # Environment Variables
 
-SpendWise uses environment variables to keep local configuration and secrets out of the source code.
+SpendWise uses environment variables so secrets and runtime settings stay outside the source code.
 
-Create a local `.env` file from `.env.example`:
+Create a local file:
 
 ```bash
 cp .env.example .env
 ```
 
-Never commit the real `.env` file. It can contain database passwords and application secrets.
+Never commit the real `.env` file.
 
-## Variables
+## Common Variables
 
 | Variable | Required | Example | Purpose |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | Yes | `postgresql://postgres:password@localhost:5432/expense_tracker_db` | PostgreSQL connection string |
-| `SECRET_KEY` | Yes | `change-this-to-a-long-random-secret` | Protects Flask sessions and flash messages |
-| `APP_ENV` | Recommended | `development` | Controls app environment and debug mode |
-| `APP_PORT` | Recommended | `5000` | Port used by `python3 app.py` |
-| `LOG_LEVEL` | Recommended | `INFO` | Python logging level |
-| `SESSION_COOKIE_SECURE` | Recommended | `false` locally, `true` in production | Sends cookies only over HTTPS when enabled |
-| `SESSION_COOKIE_HTTPONLY` | Recommended | `true` | Prevents JavaScript access to session cookies |
+| `APP_ENV` | Recommended | `development` | Runtime environment |
+| `LOG_LEVEL` | Recommended | `INFO` | JSON log level |
+| `SECRET_KEY` | Yes for `web-app` | `long-random-secret` | Protects Flask browser sessions |
+| `JWT_SECRET` | Yes for APIs | `different-long-random-secret` | Signs and verifies JWT access tokens |
+
+## Web App Variables
+
+| Variable | Required | Example | Purpose |
+| --- | --- | --- | --- |
+| `WEB_APP_PORT` | Recommended | `5000` | Browser-facing app port |
+| `AUTH_SERVICE_URL` | Yes | `http://127.0.0.1:5001` | Auth service URL |
+| `TRANSACTION_SERVICE_URL` | Yes | `http://127.0.0.1:5002` | Transaction service URL |
+| `SERVICE_TIMEOUT_SECONDS` | Recommended | `5` | HTTP timeout for service calls |
+| `SESSION_COOKIE_SECURE` | Recommended | `false` locally, `true` in production | Sends cookies only over HTTPS |
+| `SESSION_COOKIE_HTTPONLY` | Recommended | `true` | Blocks JavaScript from reading session cookie |
 | `SESSION_COOKIE_SAMESITE` | Recommended | `Lax` | Controls cross-site cookie behavior |
-| `REDIS_URL` | Optional | `redis://localhost:6379/0` | Enables Redis readiness checks when configured |
-| `JWT_SECRET` | Optional/reserved | `change-this-if-you-add-jwt-auth` | Reserved for future JWT/API auth |
-| `CORS_ORIGINS` | Optional/reserved | `http://127.0.0.1:5000,http://localhost:5000` | Reserved for future cross-origin/API configuration |
 
-## `DATABASE_URL`
+## Auth Service Variables
 
-Format:
+| Variable | Required | Example | Purpose |
+| --- | --- | --- | --- |
+| `AUTH_SERVICE_PORT` | Recommended | `5001` | Auth API port |
+| `AUTH_DATABASE_URL` | Yes | `postgresql://user:password@host:5432/spendwise_auth_db` | Auth database connection |
+| `JWT_EXPIRES_MINUTES` | Recommended | `120` | Access token lifetime |
 
-```text
-postgresql://username:password@host:port/database_name
-```
+## Transaction Service Variables
 
-Example:
+| Variable | Required | Example | Purpose |
+| --- | --- | --- | --- |
+| `TRANSACTION_SERVICE_PORT` | Recommended | `5002` | Transaction API port |
+| `TRANSACTION_DATABASE_URL` | Yes | `postgresql://user:password@host:5432/spendwise_transaction_db` | Transaction database connection |
 
-```env
-DATABASE_URL=postgresql://postgres:my_password@localhost:5432/expense_tracker_db
-```
+## Optional / Legacy Variables
 
-Parts:
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Kept for the legacy monolith `app.py` |
+| `APP_PORT` | Kept for the legacy monolith `app.py` |
+| `REDIS_URL` | Optional Redis config for future cache/session work |
+| `CORS_ORIGINS` | Reserved for future browser/API CORS configuration |
 
-- `postgresql://` tells SQLAlchemy to use PostgreSQL.
-- `postgres` is the database username.
-- `my_password` is the database password.
-- `localhost` means the database runs on your machine.
-- `5432` is the default PostgreSQL port.
-- `expense_tracker_db` is the database name.
-
-## `SECRET_KEY`
-
-Flask uses `SECRET_KEY` to sign session data.
-
-Generate a stronger value with Python:
+## Generate Strong Secrets
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Then paste it into `.env`:
+Use different values for:
 
 ```env
-SECRET_KEY=your-generated-secret
+SECRET_KEY=
+JWT_SECRET=
 ```
-
-## `APP_ENV`
-
-Use:
-
-```env
-APP_ENV=development
-```
-
-Current behavior:
-
-- `development` enables Flask debug mode when running `python3 app.py`.
-- Any other value disables debug mode.
-
-## `APP_PORT`
-
-Controls the port used by:
-
-```bash
-python3 app.py
-```
-
-Example:
-
-```env
-APP_PORT=5000
-```
-
-## `LOG_LEVEL`
-
-Controls Python logging level.
-
-Common values:
-
-```text
-DEBUG
-INFO
-WARNING
-ERROR
-CRITICAL
-```
-
-Example:
-
-```env
-LOG_LEVEL=INFO
-```
-
-## Reserved Variables
-
-These are documented now so the project has a clean configuration contract, even though the current Flask app does not actively use Redis, JWT auth, or CORS middleware yet:
-
-```env
-REDIS_URL=
-JWT_SECRET=change-this-if-you-add-jwt-auth
-CORS_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
-```
-
-## Session Cookie Variables
-
-Recommended local values:
-
-```env
-SESSION_COOKIE_SECURE=false
-SESSION_COOKIE_HTTPONLY=true
-SESSION_COOKIE_SAMESITE=Lax
-```
-
-Recommended production values:
-
-```env
-SESSION_COOKIE_SECURE=true
-SESSION_COOKIE_HTTPONLY=true
-SESSION_COOKIE_SAMESITE=Lax
-```
-
-Only use `SESSION_COOKIE_SECURE=true` when the app is served over HTTPS.
 
 ## Security Notes
 
 - Never commit `.env`.
-- Keep `.env.example` safe and generic.
-- Use different secrets for local development and production.
+- Keep `.env.example` generic.
+- Use different secrets for local and production.
 - Rotate secrets if they are exposed.
-- Do not put real passwords, production URLs, or private keys in documentation.
+- Set `SESSION_COOKIE_SECURE=true` only when HTTPS is enabled.
