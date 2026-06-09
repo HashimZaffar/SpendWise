@@ -1,79 +1,78 @@
 # Architecture
 
-SpendWise uses a microservices architecture with a server-rendered frontend.
+SpendWise is a local Python microservices-style full-stack app.
 
-## High-Level Flow
+## Services
+
+| Service | Port | Responsibility |
+| --- | --- | --- |
+| `web-app` | `5000` | Browser UI, sessions, forms, CSRF, calls backend services |
+| `auth-service` | `5001` | Signup, login, password hashing, JWT creation |
+| `transaction-service` | `5002` | Transaction CRUD, search, filters, summary totals |
+
+## Request Flow
 
 ```text
 Browser
   -> web-app
-  -> auth-service for signup/login/user identity
-  -> transaction-service for transaction CRUD and summaries
-  -> separate PostgreSQL databases
+  -> auth-service
+  -> transaction-service
+  -> PostgreSQL
 ```
 
-## Services
+The browser talks to `web-app`.
 
-| Service | Purpose |
-| --- | --- |
-| `web-app` | Renders HTML, manages browser session, protects forms with CSRF, calls backend services |
-| `auth-service` | Owns users, password hashes, login, JWT issuing, `/me` user lookup |
-| `transaction-service` | Owns transaction records, validates JWTs, calculates dashboard summaries |
+The `web-app` talks to backend services over HTTP.
+
+The backend services talk to PostgreSQL.
 
 ## Data Ownership
 
-Each service owns its data. This is one of the most important microservices rules.
+| Service | Database | Data |
+| --- | --- | --- |
+| `auth-service` | `spendwise_auth_db` | users and password hashes |
+| `transaction-service` | `spendwise_transaction_db` | income and expense transactions |
 
-```text
-auth-service
-  -> spendwise_auth_db
-  -> users table
-
-transaction-service
-  -> spendwise_transaction_db
-  -> transactions table
-```
-
-The `web-app` does not directly connect to the databases. It talks to backend services over HTTP.
+The `web-app` does not directly connect to PostgreSQL.
 
 ## Authentication Flow
 
 ```text
-Browser submits login form
+User submits login form
   -> web-app sends email/password to auth-service
-  -> auth-service validates password
+  -> auth-service verifies password
   -> auth-service returns JWT
-  -> web-app stores JWT in Flask session
-  -> web-app sends JWT to transaction-service for protected requests
+  -> web-app stores JWT in session
+  -> web-app sends JWT to transaction-service
 ```
 
 ## Transaction Flow
 
 ```text
-Browser submits transaction form
-  -> web-app validates CSRF
-  -> web-app sends JSON request to transaction-service
+User submits transaction form
+  -> web-app validates CSRF token
+  -> web-app sends request to transaction-service
   -> transaction-service validates JWT
-  -> transaction-service creates/updates/deletes transaction
-  -> web-app redirects back to dashboard
+  -> transaction-service saves or updates data
+  -> web-app renders dashboard
 ```
 
 ## Health and Readiness
 
-Every service exposes:
+Each service has:
 
 ```text
 /health
 /ready
 ```
 
-`/health` means the process is alive.
+`/health` means the service process is alive.
 
-`/ready` means the service can reach the dependencies it needs for traffic.
+`/ready` means the service can reach its required dependencies.
 
-## Structured Logging
+## Logging
 
-Each service writes JSON logs to stdout with:
+All services write structured JSON logs with:
 
 - `level`
 - `message`
@@ -84,10 +83,3 @@ Each service writes JSON logs to stdout with:
 - `path`
 - `status_code`
 - `duration_ms`
-
-## Current Limitations
-
-- Database migrations are not implemented yet.
-- Automated tests are still minimal.
-- There is no API gateway yet.
-- Service URLs are configured through environment variables.

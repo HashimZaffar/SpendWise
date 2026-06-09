@@ -9,14 +9,23 @@ Install:
 - Python 3.10 or newer
 - PostgreSQL
 - Git
-- `pip`
+- `make`
 
-Optional:
+Check PostgreSQL:
 
-- pgAdmin
-- VS Code
+```bash
+pg_isready -h localhost -p 5432
+```
+
+If PostgreSQL is down on Ubuntu:
+
+```bash
+sudo pg_ctlcluster 16 main start
+```
 
 ## 1. Create Virtual Environment
+
+From inside `expense-tracker/`:
 
 ```bash
 python3 -m venv venv
@@ -30,49 +39,36 @@ make install
 make install-services
 ```
 
-## 3. Create Databases
-
-```bash
-createdb spendwise_auth_db
-createdb spendwise_transaction_db
-```
-
-If `createdb` is not available:
-
-```bash
-psql -U postgres
-```
-
-Then:
-
-```sql
-CREATE DATABASE spendwise_auth_db;
-CREATE DATABASE spendwise_transaction_db;
-\q
-```
-
-## 4. Create Environment File
+## 3. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set your real PostgreSQL password:
+Edit `.env` and set your local PostgreSQL password:
 
 ```env
 AUTH_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_auth_db
 TRANSACTION_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_transaction_db
-AUTH_SERVICE_URL=http://127.0.0.1:5001
-TRANSACTION_SERVICE_URL=http://127.0.0.1:5002
 ```
 
-## 5. Start Services
+## 4. Create Databases
 
-Open three terminals inside `expense-tracker/`.
+```bash
+createdb -U postgres -h localhost spendwise_auth_db
+createdb -U postgres -h localhost spendwise_transaction_db
+```
+
+Use the same PostgreSQL password that you configured in `.env`.
+
+## 5. Run Services
+
+Open three terminals.
 
 Terminal 1:
 
 ```bash
+cd "/home/hashim/DevOps projects/full-stack-basic-project/expense-tracker"
 source venv/bin/activate
 make run-auth
 ```
@@ -80,6 +76,7 @@ make run-auth
 Terminal 2:
 
 ```bash
+cd "/home/hashim/DevOps projects/full-stack-basic-project/expense-tracker"
 source venv/bin/activate
 make run-transactions
 ```
@@ -87,6 +84,7 @@ make run-transactions
 Terminal 3:
 
 ```bash
+cd "/home/hashim/DevOps projects/full-stack-basic-project/expense-tracker"
 source venv/bin/activate
 make run-web
 ```
@@ -97,7 +95,7 @@ Open:
 http://127.0.0.1:5000/
 ```
 
-## 6. Health Checks
+## 6. Verify Services
 
 ```bash
 curl http://127.0.0.1:5000/health
@@ -108,24 +106,29 @@ curl http://127.0.0.1:5002/health
 curl http://127.0.0.1:5002/ready
 ```
 
-## 7. Manual End-to-End Test Flow
+All readiness endpoints should return:
 
-1. Open `http://127.0.0.1:5000/signup`.
-2. Create a new account.
-3. Login at `http://127.0.0.1:5000/`.
+```json
+{
+  "status": "ready"
+}
+```
+
+## 7. Manual App Test
+
+1. Open `/signup`.
+2. Create a user.
+3. Login.
 4. Add an income transaction.
 5. Add an expense transaction.
-6. Confirm dashboard totals update.
-7. Search by title or category.
-8. Filter by income and expense.
-9. Edit a transaction.
-10. Delete a transaction.
-11. Logout.
-12. Confirm `/dashboard` redirects to login when logged out.
+6. Check dashboard totals.
+7. Search and filter transactions.
+8. Edit a transaction.
+9. Delete a transaction.
+10. Logout.
 
-## 8. Developer Checks
+## 8. Developer Check
 
 ```bash
 make test
-make build
 ```

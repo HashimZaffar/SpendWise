@@ -1,201 +1,119 @@
 # Troubleshooting
 
-This guide covers common local setup and runtime issues.
+This guide lists common local issues and fixes.
 
-## `ModuleNotFoundError: No module named 'flask'`
+## PostgreSQL Is Not Running
 
-Dependencies are not installed or the virtual environment is not active.
+Symptom:
+
+```text
+localhost:5432 - no response
+connection refused
+```
+
+Fix:
+
+```bash
+sudo pg_ctlcluster 16 main start
+pg_isready -h localhost -p 5432
+```
+
+Expected:
+
+```text
+localhost:5432 - accepting connections
+```
+
+## Database Does Not Exist
+
+Symptom:
+
+```text
+database "spendwise_auth_db" does not exist
+database "spendwise_transaction_db" does not exist
+```
+
+Fix:
+
+```bash
+createdb -U postgres -h localhost spendwise_auth_db
+createdb -U postgres -h localhost spendwise_transaction_db
+```
+
+## Wrong PostgreSQL Password
+
+Symptom:
+
+```text
+password authentication failed for user "postgres"
+```
+
+Fix:
+
+Update `.env` with the correct password:
+
+```env
+AUTH_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_auth_db
+TRANSACTION_DATABASE_URL=postgresql://postgres:your_password@localhost:5432/spendwise_transaction_db
+```
+
+## Port Already In Use
+
+Symptom:
+
+```text
+Address already in use
+```
+
+Fix:
+
+Find and stop the old process, or change the service port in `.env`.
+
+Default ports:
+
+```env
+WEB_APP_PORT=5000
+AUTH_SERVICE_PORT=5001
+TRANSACTION_SERVICE_PORT=5002
+```
+
+## Web App Opens But Dashboard Fails
+
+This usually means one backend service is down.
+
+Check:
+
+```bash
+curl http://127.0.0.1:5001/ready
+curl http://127.0.0.1:5002/ready
+```
+
+Both should return:
+
+```json
+{
+  "status": "ready"
+}
+```
+
+## Changes To `.env` Are Not Working
+
+Stop the service and start it again.
+
+Environment variables are loaded when the Python process starts.
+
+## Python Dependency Error
+
+Symptom:
+
+```text
+ModuleNotFoundError
+```
 
 Fix:
 
 ```bash
 source venv/bin/activate
-python3 -m pip install -r requirements.txt
-```
-
-## `ModuleNotFoundError: No module named 'psycopg2'`
-
-PostgreSQL driver is missing.
-
-Fix:
-
-```bash
-python3 -m pip install -r requirements.txt
-```
-
-## `DATABASE_URL` Is Missing
-
-The `.env` file may not exist.
-
-Fix:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env`.
-
-## `SECRET_KEY` Is Missing
-
-Flask needs `SECRET_KEY` for session and flash-message security.
-
-Fix:
-
-```bash
-cp .env.example .env
-```
-
-Then set:
-
-```env
-SECRET_KEY=your-generated-secret
-```
-
-Generate a strong value:
-
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-## `password authentication failed for user "postgres"`
-
-The password in `DATABASE_URL` is wrong.
-
-Fix:
-
-1. Confirm your PostgreSQL password.
-2. Update `.env`.
-3. Restart the Flask app.
-
-## `database "expense_tracker_db" does not exist`
-
-The database has not been created.
-
-Fix:
-
-```bash
-createdb expense_tracker_db
-```
-
-Or:
-
-```bash
-psql -U postgres
-```
-
-Then:
-
-```sql
-CREATE DATABASE expense_tracker_db;
-```
-
-## `relation "users" does not exist`
-
-The app has not created tables yet, or the wrong database is connected.
-
-Fix:
-
-1. Check `DATABASE_URL`.
-2. Run the app:
-
-```bash
-python3 app.py
-```
-
-Run local database initialization:
-
-```bash
-make init-db
-```
-
-## Login Works But Dashboard Shows No Old Transactions
-
-This can happen if transactions were created before user accounts existed.
-
-SpendWise now shows only transactions linked to the logged-in user through `user_id`.
-
-Fix:
-
-- Create new transactions after logging in.
-- Old transactions without `user_id` are intentionally hidden from account-specific dashboards.
-
-## CSS Changes Do Not Show
-
-The browser may be caching old CSS.
-
-Fix:
-
-```text
-Ctrl + Shift + R
-```
-
-Or clear browser cache.
-
-## Port 5000 Already In Use
-
-Another Flask app may already be running.
-
-Fix:
-
-Stop the other process or run on another port:
-
-```bash
-flask run --port 5001
-```
-
-If using `python3 app.py`, change the `app.run()` call temporarily:
-
-```python
-app.run(debug=True, port=5001)
-```
-
-## Syntax Check
-
-Run:
-
-```bash
-python3 -m py_compile app.py
-```
-
-If there is no output, the syntax check passed.
-
-## `/health` Works But `/ready` Fails
-
-This means the Flask app is running, but a required dependency is not ready.
-
-Most likely causes:
-
-- PostgreSQL is not running.
-- `DATABASE_URL` is wrong.
-- The database does not exist.
-- The database password is incorrect.
-
-Fix:
-
-1. Start PostgreSQL.
-2. Confirm `.env` has the correct `DATABASE_URL`.
-3. Confirm the database exists:
-
-```bash
-createdb expense_tracker_db
-```
-
-4. Open:
-
-```text
-http://127.0.0.1:5000/ready
-```
-
-## Logs Do Not Show Enough Detail
-
-Set a more detailed log level:
-
-```env
-LOG_LEVEL=DEBUG
-```
-
-Restart the app:
-
-```bash
-make run
+make install
+make install-services
 ```

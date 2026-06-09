@@ -40,7 +40,7 @@ def parse_port(value):
 APP_ENV = os.getenv("APP_ENV", "development").lower()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 SECRET_KEY = os.getenv("SECRET_KEY")
-WEB_APP_PORT = parse_port(os.getenv("WEB_APP_PORT", os.getenv("APP_PORT", "5000")))
+WEB_APP_PORT = parse_port(os.getenv("WEB_APP_PORT", "5000"))
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:5001").rstrip("/")
 TRANSACTION_SERVICE_URL = os.getenv("TRANSACTION_SERVICE_URL", "http://127.0.0.1:5002").rstrip("/")
 SESSION_COOKIE_SECURE = parse_bool_env("SESSION_COOKIE_SECURE", APP_ENV == "production")

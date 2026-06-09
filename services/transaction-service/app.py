@@ -30,7 +30,7 @@ def parse_port(value):
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-TRANSACTION_DATABASE_URL = os.getenv("TRANSACTION_DATABASE_URL") or os.getenv("DATABASE_URL")
+TRANSACTION_DATABASE_URL = os.getenv("TRANSACTION_DATABASE_URL")
 JWT_SECRET = os.getenv("JWT_SECRET")
 TRANSACTION_SERVICE_PORT = parse_port(os.getenv("TRANSACTION_SERVICE_PORT", "5002"))
 

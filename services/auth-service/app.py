@@ -30,7 +30,7 @@ def parse_port(value):
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-AUTH_DATABASE_URL = os.getenv("AUTH_DATABASE_URL") or os.getenv("DATABASE_URL")
+AUTH_DATABASE_URL = os.getenv("AUTH_DATABASE_URL")
 JWT_SECRET = os.getenv("JWT_SECRET")
 AUTH_SERVICE_PORT = parse_port(os.getenv("AUTH_SERVICE_PORT", "5001"))
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "120"))
