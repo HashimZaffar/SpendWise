@@ -117,3 +117,42 @@ source venv/bin/activate
 make install
 make install-services
 ```
+
+## Docker Compose Database Was Not Reinitialized
+
+Symptom:
+
+```text
+database table does not exist
+old test data still exists
+```
+
+Reason:
+
+Docker keeps PostgreSQL data in a named volume. Init SQL files only run the
+first time the volume is created.
+
+Fix:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Warning: `docker compose down -v` deletes the local Docker database volume.
+
+## Docker Port Already In Use
+
+Symptom:
+
+```text
+port is already allocated
+```
+
+Fix:
+
+Stop the local service using that port, or stop the old Compose stack:
+
+```bash
+docker compose down
+```

@@ -28,6 +28,10 @@ def parse_port(value):
     return port
 
 
+def utc_timestamp():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 APP_ENV = os.getenv("APP_ENV", "development").lower()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 TRANSACTION_DATABASE_URL = os.getenv("TRANSACTION_DATABASE_URL")
@@ -49,7 +53,7 @@ class JsonFormatter(logging.Formatter):
         log_data = {
             "level": record.levelname.lower(),
             "message": record.getMessage(),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": utc_timestamp(),
             "service": "transaction-service",
             "request_id": getattr(record, "request_id", None),
         }

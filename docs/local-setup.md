@@ -61,7 +61,39 @@ createdb -U postgres -h localhost spendwise_transaction_db
 
 Use the same PostgreSQL password that you configured in `.env`.
 
-## 5. Run Services
+## 5. Run Preflight Checks
+
+Before starting the app, check the environment and project structure:
+
+```bash
+make check-env
+make audit
+```
+
+What these commands do:
+
+| Command | Purpose |
+| --- | --- |
+| `make check-env` | checks required `.env` variables |
+| `make audit` | checks that important files and folders exist |
+
+## 6. Run Services
+
+Recommended option:
+
+```bash
+make run-local
+```
+
+This starts services in this order:
+
+1. `auth-service`
+2. `transaction-service`
+3. `web-app`
+
+It also stops all services when you press `Ctrl+C`.
+
+Manual option:
 
 Open three terminals.
 
@@ -95,7 +127,7 @@ Open:
 http://127.0.0.1:5000/
 ```
 
-## 6. Verify Services
+## 7. Verify Services
 
 ```bash
 curl http://127.0.0.1:5000/health
@@ -114,7 +146,7 @@ All readiness endpoints should return:
 }
 ```
 
-## 7. Manual App Test
+## 8. Manual App Test
 
 1. Open `/signup`.
 2. Create a user.
@@ -127,8 +159,88 @@ All readiness endpoints should return:
 9. Delete a transaction.
 10. Logout.
 
-## 8. Developer Check
+## 9. Developer Check
 
 ```bash
 make test
 ```
+
+## 10. Docker Compose Test
+
+Start the full stack with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Open the app:
+
+```text
+http://127.0.0.1:5000/
+```
+
+Docker Compose starts:
+
+- `postgres`
+- `auth-service`
+- `transaction-service`
+- `web-app`
+
+It also creates:
+
+- `spendwise-network`
+- `spendwise_postgres_data` volume
+- health checks for the app and database containers
+
+It also initializes:
+
+- `spendwise_auth_db`
+- `spendwise_transaction_db`
+- `users` table
+- `transactions` table
+
+Check services:
+
+```bash
+curl http://127.0.0.1:5000/health
+curl http://127.0.0.1:5000/ready
+curl http://127.0.0.1:5001/ready
+curl http://127.0.0.1:5002/ready
+```
+
+Stop everything:
+
+```bash
+docker compose down
+```
+
+## 11. Manual Docker Image Test
+
+Build all service images:
+
+```bash
+make docker-build
+```
+
+Run each service in a separate terminal:
+
+```bash
+make docker-run-auth
+make docker-run-transactions
+make docker-run-web
+```
+
+The Docker run commands use `--network host --env-file .env`. This keeps the
+setup simple on Linux because the containers can reach PostgreSQL on
+`localhost:5432` using the same database URLs from `.env`.
+
+Manual Docker run examples:
+
+```bash
+docker run --rm --network host --env-file .env spendwise-auth-service
+docker run --rm --network host --env-file .env spendwise-transaction-service
+docker run --rm --network host --env-file .env spendwise-web-app
+```
+
+For `/ready`, login, and transaction testing, PostgreSQL must be running and the
+two SpendWise databases must exist.

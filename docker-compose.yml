@@ -1,0 +1,120 @@
+name: spendwise
+
+x-app-defaults: &app-defaults
+  restart: unless-stopped
+  init: true
+  networks:
+    - spendwise-network
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: spendwise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spendwise_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spendwise_password}
+      POSTGRES_DB: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - spendwise_postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - spendwise-network
+
+  auth-service:
+    <<: *app-defaults
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    image: spendwise-auth-service
+    container_name: spendwise-auth-service
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUTH_SERVICE_PORT: 5001
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-spendwise_user}:${POSTGRES_PASSWORD:-spendwise_password}@postgres:5432/spendwise_auth_db
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-120}
+    ports:
+      - "${AUTH_SERVICE_HOST_PORT:-5001}:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/ready', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  transaction-service:
+    <<: *app-defaults
+    build:
+      context: .
+      dockerfile: services/transaction-service/Dockerfile
+    image: spendwise-transaction-service
+    container_name: spendwise-transaction-service
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TRANSACTION_SERVICE_PORT: 5002
+      TRANSACTION_DATABASE_URL: postgresql://${POSTGRES_USER:-spendwise_user}:${POSTGRES_PASSWORD:-spendwise_password}@postgres:5432/spendwise_transaction_db
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+    ports:
+      - "${TRANSACTION_SERVICE_HOST_PORT:-5002}:5002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/ready', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web-app:
+    <<: *app-defaults
+    build:
+      context: .
+      dockerfile: services/web-app/Dockerfile
+    image: spendwise-web-app
+    container_name: spendwise-web-app
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_APP_PORT: 5000
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      AUTH_SERVICE_URL: http://auth-service:5001
+      TRANSACTION_SERVICE_URL: http://transaction-service:5002
+      SERVICE_TIMEOUT_SECONDS: ${SERVICE_TIMEOUT_SECONDS:-5}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_COOKIE_HTTPONLY: ${SESSION_COOKIE_HTTPONLY:-true}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+    ports:
+      - "${WEB_APP_HOST_PORT:-5000}:5000"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/ready', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  spendwise_postgres_data:
+
+networks:
+  spendwise-network:
+    driver: bridge

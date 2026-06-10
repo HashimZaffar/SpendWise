@@ -13,9 +13,12 @@ SpendWise is a Python full-stack personal finance app for tracking income, expen
 - [Environment Configuration](#environment-configuration)
 - [Database Setup](#database-setup)
 - [Run Locally](#run-locally)
+- [Run with Docker](#run-with-docker)
 - [Tests](#tests)
 - [Health and Readiness](#health-and-readiness)
 - [Structured Logging](#structured-logging)
+- [Automation Scripts](#automation-scripts)
+- [Makefile Commands](#makefile-commands)
 - [Troubleshooting](#troubleshooting)
 
 ## Purpose
@@ -76,6 +79,8 @@ The `web-app` does not directly manage users or transactions. It calls the backe
 | HTTP client | requests |
 | Environment loading | python-dotenv |
 | Production WSGI server | Gunicorn |
+| Container image | Docker |
+| Local orchestration | Docker Compose |
 
 ## Project Structure
 
@@ -83,19 +88,34 @@ The `web-app` does not directly manage users or transactions. It calls the backe
 expense-tracker/
   README.md
   .env.example
+  .dockerignore
+  .gitignore
+  docker-compose.yml
   Makefile
   requirements.txt
+  database/
+    init/
+      01-create-spendwise-databases.sql
   docs/
     local-setup.md
     environment-variables.md
+    architecture.md
+    troubleshooting.md
+  scripts/
+    check_env.py
+    project_audit.py
+    run_local.py
   services/
     auth-service/
+      Dockerfile
       app.py
       requirements.txt
     transaction-service/
+      Dockerfile
       app.py
       requirements.txt
     web-app/
+      Dockerfile
       app.py
       requirements.txt
       templates/
@@ -189,7 +209,16 @@ When PostgreSQL asks for a password, use the same password configured in `.env`.
 
 ## Run Locally
 
-Run each service in a separate terminal.
+Option 1: run all services with the automation script:
+
+```bash
+make run-local
+```
+
+This command checks the project structure, validates `.env`, starts the services
+in the correct order, and stops all services when you press `Ctrl+C`.
+
+Option 2: run each service in a separate terminal.
 
 Terminal 1:
 
@@ -220,6 +249,121 @@ Open the app:
 ```text
 http://127.0.0.1:5000/
 ```
+
+## Run with Docker
+
+Recommended Docker option:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000/
+```
+
+Docker Compose starts:
+
+| Container | Purpose | Port |
+| --- | --- | --- |
+| `spendwise-postgres` | PostgreSQL database | host `5433` -> container `5432` |
+| `spendwise-auth-service` | auth API | `5001` |
+| `spendwise-transaction-service` | transaction API | `5002` |
+| `spendwise-web-app` | browser app | `5000` |
+
+Compose also includes:
+
+- explicit `spendwise-network` bridge network
+- persistent PostgreSQL volume
+- health checks for every runtime service
+- `restart: unless-stopped`
+- `.env` variable support with safe local defaults
+
+Redis is not included because SpendWise does not currently use caching,
+background jobs, or Redis-backed sessions.
+
+The PostgreSQL container automatically creates:
+
+- `spendwise_auth_db`
+- `spendwise_transaction_db`
+- `users` table
+- `transactions` table
+
+Stop containers:
+
+```bash
+docker compose down
+```
+
+SpendWise also supports manual image builds. It uses one Docker image per service.
+
+Each service Dockerfile is production-oriented:
+
+- uses `python:3.12-slim`
+- uses a multi-stage build
+- builds dependency wheels before copying app code
+- runs as a non-root user
+- includes a container healthcheck
+- keeps secrets out of the image
+- copies only the files needed by that service
+
+Build all service images:
+
+```bash
+make docker-build
+```
+
+Or build them one by one:
+
+```bash
+docker build -t spendwise-auth-service -f services/auth-service/Dockerfile .
+docker build -t spendwise-transaction-service -f services/transaction-service/Dockerfile .
+docker build -t spendwise-web-app -f services/web-app/Dockerfile .
+```
+
+Run each service manually in a separate terminal:
+
+```bash
+make docker-run-auth
+make docker-run-transactions
+make docker-run-web
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000/
+```
+
+The Docker images map to services like this:
+
+| Service | Image | Dockerfile | Port |
+| --- | --- | --- | --- |
+| `auth-service` | `spendwise-auth-service` | `services/auth-service/Dockerfile` | `5001` |
+| `transaction-service` | `spendwise-transaction-service` | `services/transaction-service/Dockerfile` | `5002` |
+| `web-app` | `spendwise-web-app` | `services/web-app/Dockerfile` | `5000` |
+
+The manual Docker run commands use:
+
+```bash
+--network host --env-file .env
+```
+
+This is simple for local Linux development because containers can use the same
+`localhost` PostgreSQL URLs from `.env`.
+
+Manual examples:
+
+```bash
+docker run --rm --network host --env-file .env spendwise-auth-service
+docker run --rm --network host --env-file .env spendwise-transaction-service
+docker run --rm --network host --env-file .env spendwise-web-app
+```
+
+For manual `docker run`, PostgreSQL is still external. For Compose, PostgreSQL
+runs as a container.
 
 ## Tests
 
@@ -291,7 +435,7 @@ Example:
 {
   "level": "info",
   "message": "Request completed",
-  "timestamp": "2026-06-09T10:00:00+00:00",
+  "timestamp": "2026-06-09T10:00:00Z",
   "service": "web-app",
   "request_id": "abc123",
   "method": "GET",
@@ -309,15 +453,56 @@ X-Request-ID
 
 This helps trace a request across services.
 
+## Automation Scripts
+
+SpendWise includes small Python automation scripts for DevOps practice.
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/check_env.py` | checks required `.env` variables and validates common values |
+| `scripts/project_audit.py` | checks that important project files and folders exist |
+| `scripts/run_local.py` | runs audit checks, validates env, then starts services in order |
+
+Run them directly:
+
+```bash
+python scripts/check_env.py
+python scripts/project_audit.py
+python scripts/run_local.py
+```
+
+Or use Makefile shortcuts:
+
+```bash
+make check-env
+make audit
+make run-local
+```
+
 ## Makefile Commands
 
 | Command | Purpose |
 | --- | --- |
 | `make install` | install root dependencies |
 | `make install-services` | install dependencies for all services |
+| `make check-env` | validate required environment variables |
+| `make audit` | verify important project files and folders |
+| `make run-local` | start all local services in the correct order |
 | `make run-auth` | start auth service |
 | `make run-transactions` | start transaction service |
 | `make run-web` | start web app |
+| `make docker-build` | build all service Docker images |
+| `make docker-build-auth` | build auth service image |
+| `make docker-build-transactions` | build transaction service image |
+| `make docker-build-web` | build web app image |
+| `make docker-run-auth` | run auth service container |
+| `make docker-run-transactions` | run transaction service container |
+| `make docker-run-web` | run web app container |
+| `make compose-config` | validate Docker Compose configuration |
+| `make compose-up` | build and start all Compose services |
+| `make compose-down` | stop Compose services |
+| `make compose-logs` | follow Compose service logs |
+| `make compose-ps` | show Compose service status |
 | `make prod-auth` | start auth service with Gunicorn |
 | `make prod-transactions` | start transaction service with Gunicorn |
 | `make prod-web` | start web app with Gunicorn |

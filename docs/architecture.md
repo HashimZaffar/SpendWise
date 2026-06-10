@@ -35,6 +35,48 @@ The backend services talk to PostgreSQL.
 
 The `web-app` does not directly connect to PostgreSQL.
 
+## Container Model
+
+Each service has its own Dockerfile and should be built as a separate image.
+
+| Service | Dockerfile | Image |
+| --- | --- | --- |
+| `auth-service` | `services/auth-service/Dockerfile` | `spendwise-auth-service` |
+| `transaction-service` | `services/transaction-service/Dockerfile` | `spendwise-transaction-service` |
+| `web-app` | `services/web-app/Dockerfile` | `spendwise-web-app` |
+
+This keeps the Docker setup closer to real microservices practice: one service,
+one image, one container.
+
+The service Dockerfiles use production-friendly patterns:
+
+- small `python:3.12-slim` base image
+- multi-stage dependency build
+- dependency wheel caching
+- non-root runtime user
+- runtime healthcheck
+- no secrets baked into the image
+- only service files copied into the image
+
+Docker Compose starts all runtime containers together:
+
+```text
+web-app container
+auth-service container
+transaction-service container
+postgres container
+```
+
+All containers join the explicit `spendwise-network` bridge network. The app
+containers use service names like `postgres`, `auth-service`, and
+`transaction-service` for internal communication.
+
+The PostgreSQL container runs the SQL files in `database/init/` the first time
+the database volume is created.
+
+Redis is not part of the Compose stack yet because there is no current Redis
+use case in the app.
+
 ## Authentication Flow
 
 ```text
@@ -76,10 +118,14 @@ All services write structured JSON logs with:
 
 - `level`
 - `message`
-- `timestamp`
+- `timestamp` in UTC `Z` format
 - `service`
 - `request_id`
 - `method`
 - `path`
 - `status_code`
 - `duration_ms`
+
+The same `request_id` is passed between services with the `X-Request-ID` header.
+This makes it easier to trace one user request across the web app, auth service,
+and transaction service.

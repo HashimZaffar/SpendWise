@@ -21,6 +21,26 @@ cp .env.example .env
 | `AUTH_SERVICE_URL` | `web-app` | `http://127.0.0.1:5001` | Auth API base URL |
 | `TRANSACTION_SERVICE_URL` | `web-app` | `http://127.0.0.1:5002` | Transaction API base URL |
 
+## Docker Compose Variables
+
+Docker Compose uses these variables for the PostgreSQL container:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `POSTGRES_USER` | `spendwise_user` | PostgreSQL user created inside the container |
+| `POSTGRES_PASSWORD` | `spendwise_password` | PostgreSQL password for local Docker development |
+| `POSTGRES_HOST_PORT` | `5433` | Host port mapped to the PostgreSQL container |
+| `WEB_APP_HOST_PORT` | `5000` | Host port mapped to the web app container |
+| `AUTH_SERVICE_HOST_PORT` | `5001` | Host port mapped to the auth service container |
+| `TRANSACTION_SERVICE_HOST_PORT` | `5002` | Host port mapped to the transaction service container |
+
+Inside Compose, services connect to PostgreSQL using the internal hostname
+`postgres`. Local Python services still use the `AUTH_DATABASE_URL` and
+`TRANSACTION_DATABASE_URL` values from `.env`.
+
+Redis is not required right now because SpendWise does not use Redis in the
+application code.
+
 ## Port Variables
 
 | Variable | Default | Service |
