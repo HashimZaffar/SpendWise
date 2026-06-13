@@ -154,6 +154,17 @@ def build_empty_dashboard_state():
             "total_expense": 0,
             "balance": 0,
         },
+        "charts": {
+            "income_expense": [
+                {"label": "Income", "amount": 0, "percent": 0},
+                {"label": "Expense", "amount": 0, "percent": 0},
+            ],
+            "expense_by_category": [],
+            "recent_expense_trend": [],
+            "has_income_expense": False,
+            "has_expense_by_category": False,
+            "has_recent_expense_trend": False,
+        },
         "filter": "all",
         "search": "",
     }
@@ -406,6 +417,7 @@ def dashboard():
         total_income=summary.get("total_income", 0),
         total_expense=summary.get("total_expense", 0),
         balance=summary.get("balance", 0),
+        charts=dashboard_data.get("charts", build_empty_dashboard_state()["charts"]),
         transaction_to_edit=transaction_to_edit,
         selected_filter=dashboard_data.get("filter", selected_filter),
         search_text=dashboard_data.get("search", search_text),

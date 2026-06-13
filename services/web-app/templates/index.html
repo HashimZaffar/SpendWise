@@ -107,6 +107,84 @@
         </form>
     </div>
 
+    <section class="analytics-section" aria-label="SpendWise insights">
+        <h2>Insights</h2>
+
+        <div class="charts-grid">
+            <article class="chart-panel chart-panel-wide">
+                <div class="chart-heading">
+                    <h3>Income vs Expense</h3>
+                    <span>All time</span>
+                </div>
+
+                {% if charts.has_income_expense %}
+                    <div class="bar-list">
+                        {% for item in charts.income_expense %}
+                            <div class="bar-row">
+                                <div class="bar-meta">
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ "%.2f"|format(item.amount) }}</strong>
+                                </div>
+                                <div class="bar-track" aria-label="{{ item.label }} amount">
+                                    <span class="bar-fill {{ item.label|lower }}" style="width: {{ item.percent }}%;"></span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="chart-empty">No chart data yet.</p>
+                {% endif %}
+            </article>
+
+            <article class="chart-panel">
+                <div class="chart-heading">
+                    <h3>Expense by Category</h3>
+                    <span>Top categories</span>
+                </div>
+
+                {% if charts.has_expense_by_category %}
+                    <div class="bar-list compact">
+                        {% for item in charts.expense_by_category %}
+                            <div class="bar-row">
+                                <div class="bar-meta">
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ "%.2f"|format(item.amount) }}</strong>
+                                </div>
+                                <div class="bar-track" aria-label="{{ item.label }} expense share">
+                                    <span class="bar-fill expense" style="width: {{ item.percent }}%;"></span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="chart-empty">No chart data yet.</p>
+                {% endif %}
+            </article>
+
+            <article class="chart-panel">
+                <div class="chart-heading">
+                    <h3>Recent Spending</h3>
+                    <span>Last 7 days</span>
+                </div>
+
+                {% if charts.has_recent_expense_trend %}
+                    <div class="trend-chart">
+                        {% for item in charts.recent_expense_trend %}
+                            <div class="trend-column">
+                                <div class="trend-bar-wrap" title="{{ item.date }}: {{ '%.2f'|format(item.amount) }}">
+                                    <span class="trend-bar" style="height: {{ item.percent }}%;"></span>
+                                </div>
+                                <span class="trend-label">{{ item.label }}</span>
+                                <span class="trend-value">{{ "%.0f"|format(item.amount) }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="chart-empty">No chart data yet.</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
 
     <h2>Transactions</h2>
 

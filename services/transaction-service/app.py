@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import jwt
@@ -175,15 +175,102 @@ def validate_transaction_payload(data):
     }, None
 
 
-def build_summary(user_id):
-    transactions = Transaction.query.filter_by(user_id=user_id).all()
+def build_summary(transactions):
     total_income = sum(item.amount for item in transactions if item.type == "income")
     total_expense = sum(item.amount for item in transactions if item.type == "expense")
 
     return {
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "balance": total_income - total_expense,
+        "total_income": round(total_income, 2),
+        "total_expense": round(total_expense, 2),
+        "balance": round(total_income - total_expense, 2),
+    }
+
+
+def chart_percent(amount, total):
+    if total <= 0:
+        return 0
+
+    return round((amount / total) * 100, 2)
+
+
+def build_charts(transactions):
+    summary = build_summary(transactions)
+    max_income_expense = max(summary["total_income"], summary["total_expense"])
+
+    income_expense = [
+        {
+            "label": "Income",
+            "amount": summary["total_income"],
+            "percent": chart_percent(summary["total_income"], max_income_expense),
+        },
+        {
+            "label": "Expense",
+            "amount": summary["total_expense"],
+            "percent": chart_percent(summary["total_expense"], max_income_expense),
+        },
+    ]
+
+    expense_totals_by_category = {}
+
+    for transaction in transactions:
+        if transaction.type != "expense":
+            continue
+
+        category = transaction.category.strip().title() or "Uncategorized"
+        expense_totals_by_category[category] = expense_totals_by_category.get(category, 0) + transaction.amount
+
+    sorted_categories = sorted(
+        expense_totals_by_category.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    top_categories = sorted_categories[:5]
+    other_total = sum(amount for _, amount in sorted_categories[5:])
+
+    if other_total > 0:
+        top_categories.append(("Other", other_total))
+
+    total_category_expense = sum(amount for _, amount in top_categories)
+    expense_by_category = [
+        {
+            "label": category,
+            "amount": round(amount, 2),
+            "percent": chart_percent(amount, total_category_expense),
+        }
+        for category, amount in top_categories
+    ]
+
+    today = datetime.now(timezone.utc).date()
+    trend_dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+    expense_totals_by_date = {day: 0 for day in trend_dates}
+
+    for transaction in transactions:
+        if transaction.type != "expense" or not transaction.created_at:
+            continue
+
+        transaction_date = transaction.created_at.date()
+
+        if transaction_date in expense_totals_by_date:
+            expense_totals_by_date[transaction_date] += transaction.amount
+
+    max_daily_expense = max(expense_totals_by_date.values()) if expense_totals_by_date else 0
+    recent_expense_trend = [
+        {
+            "label": day.strftime("%a"),
+            "date": day.isoformat(),
+            "amount": round(expense_totals_by_date[day], 2),
+            "percent": chart_percent(expense_totals_by_date[day], max_daily_expense),
+        }
+        for day in trend_dates
+    ]
+
+    return {
+        "income_expense": income_expense,
+        "expense_by_category": expense_by_category,
+        "recent_expense_trend": recent_expense_trend,
+        "has_income_expense": summary["total_income"] > 0 or summary["total_expense"] > 0,
+        "has_expense_by_category": bool(expense_by_category),
+        "has_recent_expense_trend": any(item["amount"] > 0 for item in recent_expense_trend),
     }
 
 
@@ -273,11 +360,13 @@ def list_transactions():
             )
         )
 
+    overview_transactions = Transaction.query.filter_by(user_id=user_id).all()
     transactions = query.order_by(Transaction.created_at.desc()).all()
 
     return jsonify({
         "transactions": [serialize_transaction(item) for item in transactions],
-        "summary": build_summary(user_id),
+        "summary": build_summary(overview_transactions),
+        "charts": build_charts(overview_transactions),
         "filter": selected_filter,
         "search": search_text,
     }), 200
