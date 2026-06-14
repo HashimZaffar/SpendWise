@@ -2,39 +2,51 @@
 
 ![SpendWise app screenshot](Screenshot%20from%202026-06-14%2018-57-56.png)
 
-SpendWise is a small full-stack finance app for tracking income, expenses, and balance.
+SpendWise is a Docker-first personal finance tracker built with small Flask services. It lets users create an account, log in, record income and expenses, search and filter transactions, and review totals with simple dashboard charts.
 
-The local setup is Docker-only. One Docker Compose command starts the web app, backend services, and PostgreSQL database.
+The app is split into a browser UI, an authentication API, a transaction API, and PostgreSQL databases. Local development is intentionally simple: one Docker Compose command starts the full stack.
+
+## Features
+
+- Account signup and login with hashed passwords.
+- JWT-backed service-to-service authentication.
+- Add, edit, delete, filter, and search transactions.
+- Income, expense, and balance summary cards.
+- Income-vs-expense, expense-by-category, and recent-spending charts.
+- CSRF protection for browser form submissions.
+- JSON request logs with request IDs.
+- Health and readiness endpoints for all services.
+- CI, dependency scanning, secret scanning, CodeQL, image scanning, and SBOM generation.
 
 ## Services
 
-| Service | Purpose |
-| --- | --- |
-| `web-app` | Flask/Jinja browser UI |
-| `auth-service` | Signup, login, password hashing, JWT tokens |
-| `transaction-service` | Transaction CRUD, filters, totals |
-| `postgres` | Database for auth and transactions |
+| Service | Port | Purpose |
+| --- | ---: | --- |
+| `web-app` | host `8000`, container `5000` | Flask/Jinja browser UI and session management |
+| `auth-service` | container `5001` | Signup, login, password hashing, JWT issuing, current-user lookup |
+| `transaction-service` | container `5002` | JWT-protected transaction CRUD, filtering, summaries, chart data |
+| `postgres` | container `5432` | PostgreSQL 16 with separate auth and transaction databases |
 
-## Requirements
+## Quick Start
+
+Requirements:
 
 - Docker
 - Docker Compose
 
-## Run Locally
-
-Start the full app:
+Start the app:
 
 ```bash
 docker compose up --build
 ```
 
-Open:
+Open the browser UI:
 
 ```text
 http://localhost:8000
 ```
 
-Stop:
+Stop the stack:
 
 ```bash
 docker compose down
@@ -46,19 +58,47 @@ Reset local database data:
 docker compose down -v
 ```
 
-## Environment
+## Docker Helper
 
-The app runs with safe local defaults from `docker-compose.yml`.
+The helper script wraps common Docker Compose tasks:
 
-To customize local settings:
+```bash
+python3 scripts/docker_tools.py up
+python3 scripts/docker_tools.py status
+python3 scripts/docker_tools.py logs
+python3 scripts/docker_tools.py health
+python3 scripts/docker_tools.py down
+python3 scripts/docker_tools.py clean
+```
+
+`clean` removes Compose volumes and orphaned containers.
+
+## Configuration
+
+The Docker Compose file includes safe local defaults. To customize local settings:
 
 ```bash
 cp .env.example .env
 ```
 
-Then edit `.env`.
+Then edit `.env`. Do not commit `.env`; only `.env.example` belongs in source control.
 
-Do not commit `.env`. Only `.env.example` should be committed.
+Common settings:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | `production` | Runtime mode used by all services |
+| `LOG_LEVEL` | `INFO` | JSON log level |
+| `WEB_APP_HOST_PORT` | `8000` | Host port mapped to the web app |
+| `POSTGRES_USER` | `spendwise_user` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | `spendwise_password` | PostgreSQL password |
+| `SECRET_KEY` | `change-this-local-secret` | Flask session signing key |
+| `JWT_SECRET` | `change-this-local-jwt-secret` | JWT signing key shared by auth and transaction services |
+| `JWT_EXPIRES_MINUTES` | `120` | Auth token lifetime |
+| `SERVICE_TIMEOUT_SECONDS` | `5` | Web-app timeout for backend service requests |
+| `SESSION_COOKIE_SECURE` | `false` | Set to `true` behind HTTPS |
+| `SESSION_COOKIE_HTTPONLY` | `true` | Prevent browser JavaScript from reading the session cookie |
+| `SESSION_COOKIE_SAMESITE` | `Lax` | Session cookie SameSite policy |
 
 ## Health Checks
 
@@ -69,10 +109,11 @@ curl -i http://localhost:8000/health
 curl -i http://localhost:8000/ready
 ```
 
+`/health` confirms the web process is running. `/ready` also checks the auth and transaction services, which each check PostgreSQL.
 
 ## Local Quality Checks
 
-Install local dev tools:
+Install local development tooling:
 
 ```bash
 python3 -m venv .venv
@@ -80,40 +121,34 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run lint:
-
-```bash
-ruff check services scripts
-```
-
-Run all local CI checks:
+Run all local checks:
 
 ```bash
 python3 scripts/ci_check.py
 ```
 
-Run lint only:
+Skip Docker build checks when you only need the Python checks:
+
+```bash
+python3 scripts/ci_check.py --skip-build
+```
+
+Run lint directly:
 
 ```bash
 ruff check services scripts
 ```
 
-Run syntax checks only:
+The current local check script runs lint, Python syntax checks, Docker Compose config validation, and an optional Docker image build. There is not a separate unit-test suite yet.
 
-```bash
-PYTHONPYCACHEPREFIX=/tmp/spendwise-pycache python3 -m py_compile services/auth-service/app.py services/transaction-service/app.py services/web-app/app.py scripts/docker_tools.py scripts/ci_check.py
-```
+## Documentation
 
-Use the Docker helper script:
-
-```bash
-python3 scripts/docker_tools.py status
-python3 scripts/docker_tools.py health
-```
-
-## CI
-
-GitHub Actions runs lint, syntax checks, Docker Compose config validation, and Docker image builds on pushes and pull requests to `main` or `master`.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Local Development](docs/DEVELOPMENT.md)
+- [API Reference](docs/API.md)
+- [Operations](docs/OPERATIONS.md)
+- [Security](docs/SECURITY.md)
+- [GitHub Actions Security Rules](.github/SECURITY_RULES.md)
 
 ## Project Structure
 
@@ -121,32 +156,40 @@ GitHub Actions runs lint, syntax checks, Docker Compose config validation, and D
 SpendWise/
   README.md
   .env.example
-  .dockerignore
-  .gitignore
   docker-compose.yml
   pyproject.toml
   requirements-dev.txt
+  docs/
+    API.md
+    ARCHITECTURE.md
+    DEVELOPMENT.md
+    OPERATIONS.md
+    SECURITY.md
   .github/
+    SECURITY_RULES.md
+    dependabot.yml
     workflows/
       ci.yml
-  scripts/
-    docker_tools.py
-    ci_check.py
+      docker-build.yml
+      security.yml
   database/
     init/
       01-create-spendwise-databases.sql
+  scripts/
+    ci_check.py
+    docker_tools.py
   services/
     auth-service/
-      Dockerfile
       app.py
+      Dockerfile
       requirements.txt
     transaction-service/
-      Dockerfile
       app.py
+      Dockerfile
       requirements.txt
     web-app/
-      Dockerfile
       app.py
+      Dockerfile
       requirements.txt
       static/
       templates/
