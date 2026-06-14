@@ -1,5 +1,7 @@
 # SpendWise
 
+![SpendWise app screenshot](Screenshot%20from%202026-06-14%2018-57-56.png)
+
 SpendWise is a small full-stack finance app for tracking income, expenses, and balance.
 
 The local setup is Docker-only. One Docker Compose command starts the web app, backend services, and PostgreSQL database.
