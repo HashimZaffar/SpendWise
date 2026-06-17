@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-spendwise_user}
@@ -96,7 +96,7 @@ services:
       start_period: 10s
 
   integration-tests:
-    image: python:3.12-slim
+    image: python:3.14-slim
     profiles:
       - test
     working_dir: /workspace
