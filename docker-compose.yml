@@ -95,5 +95,21 @@ services:
       retries: 5
       start_period: 10s
 
+  integration-tests:
+    image: python:3.12-slim
+    profiles:
+      - test
+    working_dir: /workspace
+    volumes:
+      - ./scripts:/scripts:ro
+    command: ["python", "/scripts/integration_test.py", "--in-network"]
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
+      web-app:
+        condition: service_healthy
+
 volumes:
   spendwise_postgres_data:

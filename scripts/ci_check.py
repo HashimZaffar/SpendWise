@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run local SpendWise CI checks: lint, tests, and Docker build."""
+"""Run local SpendWise CI checks: lint, tests, Docker build, and integration smoke tests."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ PYTHON_FILES = [
     "services/web-app/app.py",
     "scripts/docker_tools.py",
     "scripts/ci_check.py",
+    "scripts/integration_test.py",
 ]
 
 
@@ -69,7 +70,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-build",
         action="store_true",
-        help="Run lint and tests only; skip Docker Compose config/build.",
+        help="Run lint and syntax checks only; skip Docker Compose config/build and integration checks.",
+    )
+    parser.add_argument(
+        "--skip-integration",
+        action="store_true",
+        help="Run lint, syntax, and Docker build checks; skip the destructive integration smoke test.",
     )
     return parser.parse_args()
 
@@ -89,6 +95,9 @@ def main() -> int:
                 ("Docker image build", ["docker", "compose", "build"]),
             ]
         )
+
+        if not args.skip_integration:
+            steps.append(("Integration smoke test", [sys.executable, "scripts/integration_test.py"]))
 
     for name, command in steps:
         result = run_step(name, command, env=env)
