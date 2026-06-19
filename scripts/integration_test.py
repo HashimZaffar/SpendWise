@@ -98,6 +98,8 @@ def request_json(
         raise IntegrationError(f"{method} {url} failed: {error.reason}") from error
     except TimeoutError as error:
         raise IntegrationError(f"{method} {url} timed out") from error
+    except OSError as error:
+        raise IntegrationError(f"{method} {url} failed: {error}") from error
     except json.JSONDecodeError as error:
         raise IntegrationError(f"{method} {url} returned invalid JSON") from error
 

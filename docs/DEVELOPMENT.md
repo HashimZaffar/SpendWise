@@ -98,14 +98,23 @@ Run the same local CI script used by GitHub Actions:
 python3 scripts/ci_check.py
 ```
 
+The full run is destructive for local Compose data. It starts the stack, waits for readiness, runs the integration smoke test in the Compose network, and finishes with `docker compose down -v` so CI always tests from a clean database.
+
 This runs:
 
 - Ruff linting for `services` and `scripts`.
 - Python syntax checks for app and script files.
 - `docker compose config`.
 - `docker compose build`.
+- The integration smoke test in `scripts/integration_test.py`.
 
-Skip Docker build checks when iterating on Python-only changes:
+Skip the integration smoke test when you want to preserve local database data:
+
+```bash
+python3 scripts/ci_check.py --skip-integration
+```
+
+Skip Docker Compose config, build, and integration checks when iterating on Python-only changes:
 
 ```bash
 python3 scripts/ci_check.py --skip-build
@@ -125,10 +134,11 @@ PYTHONPYCACHEPREFIX=/tmp/spendwise-pycache python3 -m py_compile \
   services/transaction-service/app.py \
   services/web-app/app.py \
   scripts/docker_tools.py \
-  scripts/ci_check.py
+  scripts/ci_check.py \
+  scripts/integration_test.py
 ```
 
-There is no separate unit-test suite yet. Add focused tests before changing shared validation, auth behavior, or transaction summary logic.
+The integration smoke test covers signup, login, current-user lookup, transaction creation, listing, search, summary totals, and chart flags. There is no separate unit-test suite yet. Add focused tests before changing shared validation, auth behavior, or transaction summary logic.
 
 ## Database
 
@@ -211,6 +221,18 @@ Common causes:
 - `.env` has mismatched database credentials.
 - `JWT_SECRET` differs between `auth-service` and `transaction-service`.
 - A service failed startup validation for an environment variable.
+- The local Postgres volume is stale or partially initialized.
+
+### PostgreSQL Volume Is Stale or Broken
+
+If Postgres logs include `directory "/var/lib/postgresql/data" exists but is not empty`, reset the local Compose volume:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+This deletes local SpendWise database data.
 
 ### Login Works but Dashboard Logs Out
 

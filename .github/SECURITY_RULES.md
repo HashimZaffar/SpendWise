@@ -23,11 +23,13 @@ At minimum, require these workflows before merge:
 
 If GitHub exposes individual job names as checks, require:
 
-- `Lint, test, and build`
+- `Lint, test, build, and integration`
 - `Python dependency scan`
 - `Secret scan`
 - `CodeQL analysis`
-- `Trivy image scan and SBOM`
+- `Trivy image scan and SBOM (auth-service)`
+- `Trivy image scan and SBOM (transaction-service)`
+- `Trivy image scan and SBOM (web-app)`
 
 ## Production Approval
 

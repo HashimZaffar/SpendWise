@@ -16,7 +16,7 @@ The app is split into a browser UI, an authentication API, a transaction API, an
 - CSRF protection for browser form submissions.
 - JSON request logs with request IDs.
 - Health and readiness endpoints for all services.
-- CI, dependency scanning, secret scanning, CodeQL, image scanning, and SBOM generation.
+- CI, integration smoke tests, dependency scanning, secret scanning, CodeQL, image scanning, and SBOM generation.
 
 ## Services
 
@@ -121,13 +121,21 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run all local checks:
+Run all local CI checks:
 
 ```bash
 python3 scripts/ci_check.py
 ```
 
-Skip Docker build checks when you only need the Python checks:
+The full run starts the Docker Compose stack, runs the integration smoke test, and removes the local Compose volume at the end. Use it when local database data is disposable.
+
+Skip the destructive integration smoke test while still running lint, syntax, Compose config, and Docker builds:
+
+```bash
+python3 scripts/ci_check.py --skip-integration
+```
+
+Skip Docker Compose config, build, and integration checks when you only need the Python checks:
 
 ```bash
 python3 scripts/ci_check.py --skip-build
@@ -139,7 +147,7 @@ Run lint directly:
 ruff check services scripts
 ```
 
-The current local check script runs lint, Python syntax checks, Docker Compose config validation, and an optional Docker image build. There is not a separate unit-test suite yet.
+The current local check script runs lint, Python syntax checks, Docker Compose config validation, Docker image builds, and an integration smoke test. There is not a separate unit-test suite yet.
 
 ## Documentation
 
@@ -178,6 +186,7 @@ SpendWise/
   scripts/
     ci_check.py
     docker_tools.py
+    integration_test.py
   services/
     auth-service/
       app.py

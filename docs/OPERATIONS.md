@@ -50,6 +50,14 @@ python3 scripts/docker_tools.py down
 python3 scripts/docker_tools.py clean
 ```
 
+The full local CI command also manages the stack:
+
+```bash
+python3 scripts/ci_check.py
+```
+
+It starts Compose for the integration smoke test and finishes with `docker compose down -v`, which removes local database data.
+
 ## Health and Readiness
 
 Web app endpoints:
@@ -169,6 +177,8 @@ The job:
 - Installs development and service dependencies.
 - Runs `python scripts/ci_check.py`.
 
+The local CI script performs linting, Python syntax checks, Compose config validation, Docker image builds, and an integration smoke test. The integration step starts the stack, waits for web readiness, runs the `integration-tests` service, and removes containers and volumes when finished.
+
 ### `.github/workflows/security.yml`
 
 Runs on pushes to all branches, pull requests to `main` or `master`, weekly on Monday, and manual dispatch.
@@ -206,12 +216,13 @@ ghcr.io/<owner>/spendwise-web-app
 Before publishing images from `main` or `master`:
 
 1. Run `python3 scripts/ci_check.py`.
-2. Confirm `docker compose up --build` starts cleanly.
-3. Confirm `python3 scripts/docker_tools.py health` passes.
-4. Review dependency and security workflow results.
-5. Confirm production environment protection is enabled in GitHub.
-6. Confirm production secrets are set and are not the local defaults.
-7. Confirm database backup and rollback plans for any schema-affecting changes.
+2. Confirm the CI, security scanning, and Docker build workflows are green.
+3. Confirm `docker compose up --build` starts cleanly after any local reset.
+4. Confirm `python3 scripts/docker_tools.py health` passes.
+5. Review dependency audit, secret scan, CodeQL, Trivy, and SBOM results.
+6. Confirm production environment protection is enabled in GitHub.
+7. Confirm production secrets are set and are not the local defaults.
+8. Confirm database backup and rollback plans for any schema-affecting changes.
 
 ## Rollback Notes
 

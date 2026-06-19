@@ -410,11 +410,31 @@ Errors:
 | `401` | Missing or invalid bearer token |
 | `404` | Transaction does not exist for current user |
 
-## Manual API Smoke Test
+## Automated API Smoke Test
 
-Expose service ports temporarily only for local debugging. The default Compose file keeps them internal.
+The integration smoke test exercises the internal auth and transaction APIs through the Docker Compose network.
 
-Inside the web-app container network, the browser-facing flow is the preferred smoke test:
+Run it through the local CI script:
+
+```bash
+python3 scripts/ci_check.py
+```
+
+The full CI script starts the Compose stack, waits for readiness, creates a fresh user, logs in, creates income and expense transactions, checks summaries and chart flags, verifies search, and then runs `docker compose down -v`.
+
+To run only the API smoke test from the host:
+
+```bash
+python3 scripts/integration_test.py
+```
+
+That mode is also destructive because it removes the local Compose volume after the test. If the stack is already running and you want to avoid automatic cleanup, run the in-network test service directly:
+
+```bash
+docker compose --profile test run --rm integration-tests
+```
+
+Expose service ports temporarily only for local debugging. The default Compose file keeps backend service ports internal. For browser-facing checks:
 
 ```bash
 docker compose up --build

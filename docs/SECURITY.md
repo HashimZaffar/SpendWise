@@ -52,6 +52,7 @@ SpendWise includes baseline security controls for a small Flask application. Thi
 
 Security automation includes:
 
+- Full local CI with an integration smoke test.
 - Python dependency audit.
 - Pull request dependency review.
 - Secret scanning with Gitleaks.
@@ -59,6 +60,42 @@ Security automation includes:
 - Trivy container image scanning for high and critical vulnerabilities.
 - CycloneDX SBOM artifacts.
 - Dependabot updates for Python, Docker, Docker Compose, and GitHub Actions.
+
+### Optional Local Security Checks
+
+These commands mirror the main security workflow checks when Docker and network access are available:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pip-audit
+pip-audit \
+  -r requirements-dev.txt \
+  -r services/auth-service/requirements.txt \
+  -r services/transaction-service/requirements.txt \
+  -r services/web-app/requirements.txt
+```
+
+```bash
+docker run --rm -v "${PWD}:/repo" zricethezav/gitleaks:latest \
+  detect --source=/repo --verbose --redact
+```
+
+After building images with `docker compose build`, scan each service image:
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+  image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+  spendwise-auth-service:latest
+
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+  image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+  spendwise-transaction-service:latest
+
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+  image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+  spendwise-web-app:latest
+```
 
 ## Local Defaults Are Not Production Secrets
 
@@ -116,7 +153,8 @@ These are acceptable for a local demo app but should be addressed for production
 - No account lockout or email verification flow is implemented.
 - No refresh-token flow is implemented.
 - No centralized log aggregation or alerting is configured.
-- No automated unit or integration test suite exists yet.
+- No dedicated unit-test suite exists yet.
+- Integration smoke tests do not yet cover browser HTML flows, negative authorization cases, or cross-user isolation attempts.
 
 ## Reporting Security Issues
 

@@ -168,3 +168,15 @@ Each app service image:
 - Defines a service-local health check.
 
 The Compose file adds service dependencies and readiness health checks so the web app starts after its backend dependencies are healthy.
+
+## CI and Runtime Validation
+
+The local and GitHub CI path uses `scripts/ci_check.py` as the main entry point. It validates:
+
+- Ruff linting for service and script code.
+- Python syntax for all app and helper scripts.
+- Docker Compose configuration.
+- Docker image builds for all Flask services.
+- A Docker Compose integration smoke test.
+
+The integration smoke test starts the stack from a clean local volume, waits for `web-app` readiness, runs API checks from inside the Compose network, and then removes the stack and volume. This keeps CI runs isolated and verifies the service-to-service paths used by the browser UI.
