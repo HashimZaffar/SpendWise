@@ -12,6 +12,8 @@ The app itself is Docker-first. Running services directly on the host is possibl
 
 ## Start the Stack
 
+### Docker Compose
+
 ```bash
 docker compose up --build
 ```
@@ -51,6 +53,50 @@ Remove local data and orphaned containers:
 ```bash
 python3 scripts/docker_tools.py clean
 ```
+
+### Kubernetes Lab
+
+Use the Kubernetes lab when you want to practice Deployments, Services, Ingress, ConfigMaps, Secrets, StatefulSets, PVCs, and Rancher.
+
+The app namespace is:
+
+```text
+spendwise
+```
+
+Apply the local Kubernetes manifests:
+
+```bash
+kubectl apply -k k8s/base
+```
+
+Check pods and ingress:
+
+```bash
+kubectl get pods,svc,ingress,pvc -n spendwise -o wide
+```
+
+Open:
+
+```text
+http://spendwise.localhost:8080
+```
+
+If you want to apply the app in order:
+
+```bash
+kubectl apply -f k8s/base/00-namespace.yaml
+kubectl apply -f k8s/base/01-configmap.yaml
+kubectl apply -f k8s/base/02-secret.yaml
+kubectl apply -f k8s/base/02a-postgres-init-configmap.yaml
+kubectl apply -f k8s/base/03-postgres.yaml
+kubectl apply -f k8s/base/04-auth-service.yaml
+kubectl apply -f k8s/base/05-transaction-service.yaml
+kubectl apply -f k8s/base/06-web-app.yaml
+kubectl apply -f k8s/base/07-ingress.yaml
+```
+
+Kubernetes lab details live in [Kubernetes Local Lab](KUBERNETES.md).
 
 ## Environment Setup
 
@@ -222,6 +268,20 @@ Common causes:
 - `JWT_SECRET` differs between `auth-service` and `transaction-service`.
 - A service failed startup validation for an environment variable.
 - The local Postgres volume is stale or partially initialized.
+
+### Kubernetes URL Resets After Restart
+
+If `curl -H "Host: spendwise.localhost" http://localhost:8080` returns `Recv failure: Connection reset by peer`, the cluster may still be recovering after Docker node containers were restarted.
+
+Check:
+
+```bash
+kubectl get nodes
+kubectl get pods -n ingress-nginx
+kubectl get pods -n spendwise -o wide
+```
+
+Wait for `ingress-nginx-controller` and `web-app` pods to become `Running` and ready, then retry the URL.
 
 ### PostgreSQL Volume Is Stale or Broken
 

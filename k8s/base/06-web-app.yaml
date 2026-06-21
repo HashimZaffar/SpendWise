@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: web-app
-  namespace: spendwise-test-lab
+  namespace: spendwise
 spec:
   type: ClusterIP
   selector:
@@ -11,14 +11,15 @@ spec:
     - name: http
       port: 5000
       targetPort: 5000
+
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-app
-  namespace: spendwise-test-lab
+  namespace: spendwise
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: web-app
@@ -27,6 +28,31 @@ spec:
       labels:
         app: web-app
     spec:
+      initContainers:
+        - name: wait-for-auth-service
+          image: curlimages/curl:8.11.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until curl -sf http://auth-service:5001/ready; do
+                echo "waiting for auth-service..."
+                sleep 2
+              done
+
+        - name: wait-for-transaction-service
+          image: curlimages/curl:8.11.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until curl -sf http://transaction-service:5002/ready; do
+                echo "waiting for transaction-service..."
+                sleep 2
+              done
+
       containers:
         - name: web-app
           image: ghcr.io/hashimzaffar/spendwise-web-app:6d5987e8207a48fa22649c34d27c64991c377f21
@@ -34,26 +60,35 @@ spec:
           ports:
             - name: http
               containerPort: 5000
-          env:
-            - name: WEB_APP_PORT
-              value: "5000"
-            - name: SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: spendwise-secrets
-                  key: SECRET_KEY
+
           envFrom:
             - configMapRef:
                 name: spendwise-config
+            - secretRef:
+                name: spendwise-secret
+
           readinessProbe:
             httpGet:
               path: /ready
               port: 5000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
           livenessProbe:
             httpGet:
               path: /health
               port: 5000
-            initialDelaySeconds: 30
+            initialDelaySeconds: 40
             periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

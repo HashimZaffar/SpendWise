@@ -1,12 +1,20 @@
-# Rancher Local Learning Plan
+# Rancher Local Learning Notes
 
 ## Goal
 
-Use Rancher as a Kubernetes management UI for the local kind cluster.
+Use Rancher as a Kubernetes management UI for the local Kind cluster.
 
-## Initial Setup
+## Current Setup
 
-Rancher will be installed inside the same kind cluster for learning.
+Rancher is installed inside the same Kind cluster used for the SpendWise local lab.
+
+| Item | Value |
+| --- | --- |
+| Cluster | `spendwise-lab` |
+| Rancher namespace | `cattle-system` |
+| Rancher hostname | `rancher.localhost` |
+| Local URL | `https://rancher.localhost:8443` |
+| Local bootstrap password | `admin12345` |
 
 ## Required Components
 
@@ -23,9 +31,19 @@ Rancher will be installed inside the same kind cluster for learning.
 
 ## Access Method
 
-Initial access will use kubectl port-forward.
+Access uses the Kind HTTPS port mapping:
 
-Later access may use local hostname and ingress.
+```text
+https://rancher.localhost:8443
+```
+
+The Rancher certificate is self-signed in this local lab, so the browser will show a certificate warning.
+
+Verify from the CLI:
+
+```bash
+curl -k -I --resolve rancher.localhost:8443:127.0.0.1 https://rancher.localhost:8443
+```
 
 ## Learning Tasks
 
@@ -40,3 +58,4 @@ Later access may use local hostname and ingress.
 - Restart deployment
 - Scale deployment
 - Inspect events
+- Compare Rancher views with `kubectl get pods,svc,ingress -n spendwise`

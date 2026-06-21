@@ -4,6 +4,8 @@ SpendWise is a small service-oriented Flask application. The browser UI is inten
 
 ## Runtime Topology
 
+### Docker Compose
+
 ```text
 Browser
   |
@@ -30,6 +32,38 @@ http://localhost:8000
 ```
 
 The auth and transaction APIs are reachable by service name inside the Compose network.
+
+### Local Kubernetes
+
+```text
+Browser
+  |
+  | http://spendwise.localhost:8080
+  v
+ingress-nginx
+  |
+  v
+Ingress spendwise-ingress
+  |
+  v
+Service web-app :5000
+  |
+  v
+web-app Deployment, 2 replicas
+  | \
+  |  \ Kubernetes DNS and ClusterIP Services
+  |   \
+  v    v
+auth-service Deployment, 2 replicas       transaction-service Deployment, 2 replicas
+  |                                       |
+  v                                       v
+Service postgres :5432
+  |
+  v
+postgres StatefulSet, 1 replica + PVC
+```
+
+The local Kubernetes app runs in the `spendwise` namespace. The Kind lab maps host port `8080` to cluster HTTP ingress.
 
 ## Service Responsibilities
 
@@ -169,6 +203,25 @@ Each app service image:
 
 The Compose file adds service dependencies and readiness health checks so the web app starts after its backend dependencies are healthy.
 
+## Kubernetes Manifests
+
+Kubernetes manifests live in `k8s/base/`:
+
+| File | Purpose |
+| --- | --- |
+| `00-namespace.yaml` | Creates the `spendwise` namespace |
+| `01-configmap.yaml` | Non-sensitive runtime configuration |
+| `02-secret.yaml` | Local lab secrets and database URLs |
+| `02a-postgres-init-configmap.yaml` | PostgreSQL initialization SQL |
+| `03-postgres.yaml` | PostgreSQL Service and StatefulSet |
+| `04-auth-service.yaml` | Auth Service and Deployment |
+| `05-transaction-service.yaml` | Transaction Service and Deployment |
+| `06-web-app.yaml` | Web Service and Deployment |
+| `07-ingress.yaml` | Ingress for `spendwise.localhost` |
+| `kustomization.yaml` | Applies the full base as one unit |
+
+The app Deployments use two replicas for basic local availability. PostgreSQL uses one StatefulSet replica because database storage needs stable identity and a persistent volume.
+
 ## CI and Runtime Validation
 
 The local and GitHub CI path uses `scripts/ci_check.py` as the main entry point. It validates:
@@ -180,3 +233,5 @@ The local and GitHub CI path uses `scripts/ci_check.py` as the main entry point.
 - A Docker Compose integration smoke test.
 
 The integration smoke test starts the stack from a clean local volume, waits for `web-app` readiness, runs API checks from inside the Compose network, and then removes the stack and volume. This keeps CI runs isolated and verifies the service-to-service paths used by the browser UI.
+
+The Kubernetes lab validates a second runtime path: GHCR images run inside Kind, internal traffic goes through Kubernetes Services, and browser traffic enters through ingress-nginx.

@@ -2,6 +2,8 @@
 
 This lab runs Rancher on a local Kind cluster. Rancher chart `2.14.x` does not support Kubernetes `v1.36.x`, so the lab uses Kubernetes `v1.35.0`.
 
+The lab also runs the SpendWise Kubernetes deployment in the `spendwise` namespace.
+
 ## Create the Cluster
 
 ```bash
@@ -61,14 +63,82 @@ https://rancher.localhost:8443
 
 The certificate is self-signed, so the browser will show a local certificate warning.
 
+Bootstrap password for this local lab:
+
+```text
+admin12345
+```
+
+## Deploy SpendWise
+
+Apply the app:
+
+```bash
+kubectl apply -k k8s/base
+```
+
+Verify:
+
+```bash
+kubectl get pods,svc,ingress,pvc -n spendwise -o wide
+kubectl rollout status statefulset/postgres -n spendwise
+kubectl rollout status deployment/auth-service -n spendwise
+kubectl rollout status deployment/transaction-service -n spendwise
+kubectl rollout status deployment/web-app -n spendwise
+```
+
+Open SpendWise:
+
+```text
+http://spendwise.localhost:8080
+```
+
+CLI test:
+
+```bash
+curl -i -H "Host: spendwise.localhost" http://localhost:8080
+```
+
 ## Verify
 
 ```bash
 kubectl get pods -n cert-manager
 kubectl get pods -n ingress-nginx
 kubectl get pods,svc,ingress -n cattle-system
+kubectl get pods,svc,ingress -n spendwise
 curl -k -I --resolve rancher.localhost:8443:127.0.0.1 https://rancher.localhost:8443
 ```
+
+## Stop and Start Node Containers
+
+Stop the Kind node containers:
+
+```bash
+docker stop spendwise-lab-control-plane spendwise-lab-worker spendwise-lab-worker2
+```
+
+Start them again:
+
+```bash
+docker start spendwise-lab-control-plane spendwise-lab-worker spendwise-lab-worker2
+```
+
+After starting the containers, give Kubernetes a little time to recover:
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+```
+
+If SpendWise returns `Recv failure: Connection reset by peer`, check ingress and app readiness:
+
+```bash
+kubectl get pods -n ingress-nginx -o wide
+kubectl get pods -n spendwise -o wide
+kubectl get endpoints web-app -n spendwise
+```
+
+If stateless app pods are stuck in `Unknown`, delete those pods and let Deployments recreate them.
 
 ## Delete the Lab
 

@@ -2,6 +2,19 @@
 
 This reference documents the JSON APIs used by the web app. In the default Docker Compose setup, `auth-service` and `transaction-service` are internal services, while the browser talks to `web-app` at `http://localhost:8000`.
 
+In the local Kubernetes lab, the browser enters through ingress-nginx at:
+
+```text
+http://spendwise.localhost:8080
+```
+
+The internal service names are the same in Kubernetes:
+
+```text
+http://auth-service:5001
+http://transaction-service:5002
+```
+
 ## Conventions
 
 - Request and response bodies are JSON for service APIs.

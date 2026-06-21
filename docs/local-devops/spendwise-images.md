@@ -39,14 +39,23 @@ kubectl apply -k k8s/base
 Check rollout:
 
 ```bash
-kubectl get pods -n spendwise-test-lab
-kubectl get ingress -n spendwise-test-lab
+kubectl rollout status statefulset/postgres -n spendwise
+kubectl rollout status deployment/auth-service -n spendwise
+kubectl rollout status deployment/transaction-service -n spendwise
+kubectl rollout status deployment/web-app -n spendwise
+kubectl get pods,svc,ingress,pvc -n spendwise -o wide
 ```
 
 Open locally through ingress-nginx:
 
 ```text
 http://spendwise.localhost:8080
+```
+
+Quick ingress test:
+
+```bash
+curl -i -H "Host: spendwise.localhost" http://localhost:8080
 ```
 
 ## Loading Images Into Kind
@@ -82,3 +91,9 @@ for node in spendwise-lab-control-plane spendwise-lab-worker spendwise-lab-worke
   docker exec "$node" ctr --namespace=k8s.io images list | grep "$TAG"
 done
 ```
+
+## Local Tags Versus GHCR Tags
+
+`kind load docker-image spendwise-web-app:local --name spendwise-lab` works only when the host Docker daemon already has an image with that exact local tag. Pulling an image inside a Kind node does not automatically create a matching host Docker image tag.
+
+For this lab, prefer the GHCR references above and keep the manifests aligned with the exact tag you loaded or pulled.

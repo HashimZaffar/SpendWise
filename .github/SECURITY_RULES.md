@@ -16,6 +16,8 @@ Protect `main` and `master`:
 
 ## Required Status Checks
 
+Make sure GitHub Actions is enabled for the repository. If Actions is disabled, workflow files can be present and pushed but no runs will appear in the Actions tab.
+
 At minimum, require these workflows before merge:
 
 - `CI`

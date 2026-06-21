@@ -61,6 +61,8 @@ Security automation includes:
 - CycloneDX SBOM artifacts.
 - Dependabot updates for Python, Docker, Docker Compose, and GitHub Actions.
 
+Gitleaks uses `.gitleaks.toml`. The config extends the default Gitleaks rules and allows only the known SpendWise GHCR image references that end in 40-character Git commit SHA tags. This prevents Docker image tags from being reported as generic API keys while keeping the default secret rules active.
+
 ### Optional Local Security Checks
 
 These commands mirror the main security workflow checks when Docker and network access are available:
@@ -78,7 +80,7 @@ pip-audit \
 
 ```bash
 docker run --rm -v "${PWD}:/repo" zricethezav/gitleaks:latest \
-  detect --source=/repo --verbose --redact
+  detect --source=/repo --config=/repo/.gitleaks.toml --verbose --redact
 ```
 
 After building images with `docker compose build`, scan each service image:
@@ -108,6 +110,8 @@ POSTGRES_PASSWORD=spendwise_password
 ```
 
 Use strong unique values in any shared, staging, or production environment.
+
+The Kubernetes lab Secret in `k8s/base/02-secret.yaml` also contains local-only placeholder values. It is acceptable for the local Kind lab, but it must be replaced with real secret management before any shared or production deployment.
 
 ## Required Production Hardening
 

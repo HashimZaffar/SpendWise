@@ -2,9 +2,13 @@
 
 ![SpendWise app screenshot](Screenshot%20from%202026-06-14%2018-57-56.png)
 
+![SpendWise app frontend showing the personal finance dashboard](app-frontend.png)
+
+SpendWise gives users a focused dashboard for tracking income, expenses, balances, and recent spending activity.
+
 SpendWise is a Docker-first personal finance tracker built with small Flask services. It lets users create an account, log in, record income and expenses, search and filter transactions, and review totals with simple dashboard charts.
 
-The app is split into a browser UI, an authentication API, a transaction API, and PostgreSQL databases. Local development is intentionally simple: one Docker Compose command starts the full stack.
+The app is split into a browser UI, an authentication API, a transaction API, and PostgreSQL databases. Local development is intentionally simple: one Docker Compose command starts the full stack. A local Kubernetes lab is also included for learning deployments with Kind, ingress-nginx, Rancher, ConfigMaps, Secrets, Deployments, Services, Ingress, StatefulSets, and PVCs.
 
 ## Features
 
@@ -28,6 +32,8 @@ The app is split into a browser UI, an authentication API, a transaction API, an
 | `postgres` | container `5432` | PostgreSQL 16 with separate auth and transaction databases |
 
 ## Quick Start
+
+### Docker Compose
 
 Requirements:
 
@@ -57,6 +63,33 @@ Reset local database data:
 ```bash
 docker compose down -v
 ```
+
+### Local Kubernetes Lab
+
+The Kubernetes manifests live in `k8s/base/` and deploy into the `spendwise` namespace. In the current Kind lab, ingress-nginx maps host port `8080` to cluster port `80`.
+
+Apply the full app:
+
+```bash
+kubectl apply -k k8s/base
+```
+
+Check rollout:
+
+```bash
+kubectl rollout status deployment/auth-service -n spendwise
+kubectl rollout status deployment/transaction-service -n spendwise
+kubectl rollout status deployment/web-app -n spendwise
+kubectl rollout status statefulset/postgres -n spendwise
+```
+
+Open the Kubernetes app:
+
+```text
+http://spendwise.localhost:8080
+```
+
+The app Deployments run two replicas each. PostgreSQL runs as one StatefulSet pod with a PVC.
 
 ## Docker Helper
 
@@ -155,7 +188,10 @@ The current local check script runs lint, Python syntax checks, Docker Compose c
 - [Local Development](docs/DEVELOPMENT.md)
 - [API Reference](docs/API.md)
 - [Operations](docs/OPERATIONS.md)
+- [Kubernetes Local Lab](docs/KUBERNETES.md)
 - [Security](docs/SECURITY.md)
+- [SpendWise Container Images](docs/local-devops/spendwise-images.md)
+- [Rancher Lab](k8s/lab/README.md)
 - [GitHub Actions Security Rules](.github/SECURITY_RULES.md)
 
 ## Project Structure
@@ -163,6 +199,8 @@ The current local check script runs lint, Python syntax checks, Docker Compose c
 ```text
 SpendWise/
   README.md
+  app-frontend.png
+  .gitleaks.toml
   .env.example
   docker-compose.yml
   pyproject.toml
@@ -171,8 +209,33 @@ SpendWise/
     API.md
     ARCHITECTURE.md
     DEVELOPMENT.md
+    KUBERNETES.md
     OPERATIONS.md
     SECURITY.md
+    local-devops/
+      spendwise-images.md
+      tool-versions.md
+    local-lab/
+      step-04-tools.md
+  k8s/
+    base/
+      00-namespace.yaml
+      01-configmap.yaml
+      02-secret.yaml
+      02a-postgres-init-configmap.yaml
+      03-postgres.yaml
+      04-auth-service.yaml
+      05-transaction-service.yaml
+      06-web-app.yaml
+      07-ingress.yaml
+      kustomization.yaml
+    lab/
+      kind-rancher.yaml
+      README.md
+    planning/
+      docker-compose-to-kubernetes.md
+    rancher/
+      notes.md
   .github/
     SECURITY_RULES.md
     dependabot.yml

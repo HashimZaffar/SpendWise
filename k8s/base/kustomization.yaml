@@ -4,6 +4,7 @@ resources:
   - 00-namespace.yaml
   - 01-configmap.yaml
   - 02-secret.yaml
+  - 02a-postgres-init-configmap.yaml
   - 03-postgres.yaml
   - 04-auth-service.yaml
   - 05-transaction-service.yaml

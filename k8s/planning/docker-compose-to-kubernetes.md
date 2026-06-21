@@ -2,13 +2,15 @@
 
 ## Goal
 
-Convert SpendWise from Docker Compose into a Kubernetes-native local deployment running on kind and managed through Rancher.
+Convert SpendWise from Docker Compose into a Kubernetes-native local deployment running on Kind and managed through Rancher.
+
+Current status: the local Kubernetes implementation exists in `k8s/base/` and deploys into the `spendwise` namespace.
 
 ## Local Platform
 
 - Host OS: Ubuntu
 - Container runtime: Docker
-- Kubernetes cluster: kind
+- Kubernetes cluster: Kind
 - Kubernetes management UI: Rancher
 - App namespace: spendwise
 
@@ -69,21 +71,33 @@ Convert SpendWise from Docker Compose into a Kubernetes-native local deployment 
 
 ## Configuration Plan
 
-ConfigMap will store non-sensitive values:
+ConfigMap stores non-sensitive values:
 
-- FLASK_ENV
-- AUTH_SERVICE_URL
-- TRANSACTION_SERVICE_URL
-- POSTGRES_HOST
-- POSTGRES_PORT
+- `APP_ENV`
+- `LOG_LEVEL`
+- `AUTH_SERVICE_PORT`
+- `TRANSACTION_SERVICE_PORT`
+- `WEB_APP_PORT`
+- `AUTH_SERVICE_URL`
+- `TRANSACTION_SERVICE_URL`
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `SERVICE_TIMEOUT_SECONDS`
+- `JWT_EXPIRES_MINUTES`
+- `SESSION_COOKIE_SECURE`
+- `SESSION_COOKIE_HTTPONLY`
+- `SESSION_COOKIE_SAMESITE`
 
-Secret will store sensitive values:
+Secret stores local lab sensitive values:
 
-- POSTGRES_USER
-- POSTGRES_PASSWORD
-- JWT_SECRET
-- FLASK_SECRET_KEY
-- Database connection strings if needed
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `JWT_SECRET`
+- `SECRET_KEY`
+- `AUTH_DATABASE_URL`
+- `TRANSACTION_DATABASE_URL`
+
+These checked-in Secret values are local placeholders only.
 
 ## Ingress Plan
 
@@ -91,8 +105,8 @@ Browser traffic will enter through ingress-nginx.
 
 Expected local access:
 
-- SpendWise: http://localhost:8080 or http://spendwise.localhost:8080
-- Rancher: via port-forward or local hostname
+- SpendWise: http://spendwise.localhost:8080
+- Rancher: https://rancher.localhost:8443
 
 ## Image Plan
 
@@ -114,3 +128,24 @@ After this stage, I should understand:
 - Why Services are needed for internal communication
 - Why Ingress is needed for browser access
 - How Rancher visualizes workloads, services, pods, logs, and namespaces
+
+## Apply Commands
+
+```bash
+kubectl apply -k k8s/base
+kubectl get pods,svc,ingress,pvc -n spendwise -o wide
+```
+
+Layered apply:
+
+```bash
+kubectl apply -f k8s/base/00-namespace.yaml
+kubectl apply -f k8s/base/01-configmap.yaml
+kubectl apply -f k8s/base/02-secret.yaml
+kubectl apply -f k8s/base/02a-postgres-init-configmap.yaml
+kubectl apply -f k8s/base/03-postgres.yaml
+kubectl apply -f k8s/base/04-auth-service.yaml
+kubectl apply -f k8s/base/05-transaction-service.yaml
+kubectl apply -f k8s/base/06-web-app.yaml
+kubectl apply -f k8s/base/07-ingress.yaml
+```
