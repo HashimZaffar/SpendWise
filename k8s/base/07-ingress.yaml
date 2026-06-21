@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spendwise
+  namespace: spendwise-test-lab
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: spendwise.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-app
+                port:
+                  number: 5000

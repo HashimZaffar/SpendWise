@@ -96,11 +96,13 @@ Expected local access:
 
 ## Image Plan
 
-Local Docker images will be built and loaded into kind:
+Kubernetes manifests use the GHCR images produced by the CI/CD pipeline:
 
-- spendwise-web-app:local
-- spendwise-auth-service:local
-- spendwise-transaction-service:local
+- ghcr.io/hashimzaffar/spendwise-web-app:6d5987e8207a48fa22649c34d27c64991c377f21
+- ghcr.io/hashimzaffar/spendwise-auth-service:6d5987e8207a48fa22649c34d27c64991c377f21
+- ghcr.io/hashimzaffar/spendwise-transaction-service:6d5987e8207a48fa22649c34d27c64991c377f21
+
+For local Kind testing, preload those exact image references into the Kind nodes and set `imagePullPolicy: IfNotPresent`. Avoid `spendwise-*:local` unless those tags are explicitly created and loaded.
 
 ## Learning Goals
 
