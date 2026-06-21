@@ -3,9 +3,12 @@ title = "SpendWise Gitleaks Configuration"
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Allow SpendWise GHCR image references tagged with Git commit SHAs"
+[allowlist]
+description = "Allow SpendWise GHCR image references tagged with public Git commit SHAs"
 regexTarget = "line"
 regexes = [
-  '''ghcr\.io/hashimzaffar/spendwise-(web-app|auth-service|transaction-service):[0-9a-f]{40}''',
+  '''.*ghcr\.io/hashimzaffar/spendwise-(web-app|auth-service|transaction-service):[0-9a-f]{40}.*''',
+]
+stopwords = [
+  "6d5987e8207a48fa22649c34d27c64991c377f21",
 ]
